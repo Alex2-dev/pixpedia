@@ -16,7 +16,14 @@ describe('familyFromGenres', () => {
   it('départage les égalités : RPG > Stratégie > Aventure > Vitesse > Action', () => {
     expect(familyFromGenres(['adventure', 'role-playing-rpg'])).toBe('rpg');
     expect(familyFromGenres(['shooter', 'adventure'])).toBe('aventure');
-    expect(familyFromGenres(['platform', 'puzzle'])).toBe('strategie');
+    expect(familyFromGenres(['platform', 'strategy'])).toBe('strategie');
+  });
+
+  it('puzzle ne compte que si le jeu n’a aucun autre genre reconnu', () => {
+    expect(familyFromGenres(['adventure', 'puzzle'])).toBe('aventure');
+    expect(familyFromGenres(['adventure', 'platform', 'puzzle'])).toBe('aventure');
+    expect(familyFromGenres(['puzzle'])).toBe('strategie');
+    expect(familyFromGenres(['puzzle', 'indie'])).toBe('strategie');
   });
 
   it('ignore les genres inconnus et retombe sur Action', () => {

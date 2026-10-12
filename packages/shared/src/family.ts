@@ -38,10 +38,18 @@ const TIEBREAK: readonly Family[] = ['rpg', 'strategie', 'aventure', 'vitesse', 
 
 export const DEFAULT_FAMILY: Family = 'action';
 
+/**
+ * Genres secondaires : ils ne comptent que si le jeu n'a aucun autre genre reconnu.
+ * Le puzzle accompagne souvent l'aventure ou la plateforme (Zelda, Portal) sans en être le cœur.
+ */
+export const SECONDARY_GENRES: ReadonlySet<string> = new Set(['puzzle']);
+
 /** Famille majoritaire parmi les genres du jeu, avec départage fixe, Action par défaut. */
 export function familyFromGenres(genreSlugs: readonly string[]): Family {
+  const primary = genreSlugs.filter((s) => GENRE_FAMILY[s] && !SECONDARY_GENRES.has(s));
+  const counted = primary.length > 0 ? primary : genreSlugs;
   const counts = new Map<Family, number>();
-  for (const slug of genreSlugs) {
+  for (const slug of counted) {
     const family = GENRE_FAMILY[slug];
     if (family) counts.set(family, (counts.get(family) ?? 0) + 1);
   }

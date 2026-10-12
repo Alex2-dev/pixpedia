@@ -42,7 +42,7 @@ Décisions prises en cours de développement, en complément de la spec (`spec.m
 | Aventure  | adventure, point-and-click, visual-novel                                                                                       |
 | RPG       | role-playing-rpg                                                                                                               |
 
-- `indie` est ignoré. Famille majoritaire parmi les genres. Égalité : RPG > Stratégie > Aventure > Vitesse > Action. Sans genre reconnu : Action.
+- `indie` est ignoré. `puzzle` est un genre **secondaire** : il ne compte que si le jeu n'a aucun autre genre reconnu (sur les 500 premiers jeux, Stratégie faisait 40 % des cartes, Skyward Sword et Portal y tombaient). Famille majoritaire parmi les genres. Égalité : RPG > Stratégie > Aventure > Vitesse > Action. Sans genre reconnu : Action.
 - Correspondance par **slug** (stable) et non par id.
 
 ### Catalogue
