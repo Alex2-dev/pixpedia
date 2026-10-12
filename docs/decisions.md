@@ -48,7 +48,7 @@ Décisions prises en cours de développement, en complément de la spec (`spec.m
 ### Catalogue
 
 - Types de jeux inclus : jeu principal (0), remake (8), remaster (9), chacun avec sa propre carte (décision ouverte n°4). Portages, DLC, extensions, bundles, mods exclus. Réglable dans `INCLUDED_GAME_TYPES`.
-- Plateformes historiques incluses (décision ouverte n°5) : Arcade, Atari, Neo Geo, Amiga, plus DOS dans la famille PC. Liste blanche par slug dans `packages/shared/src/platforms.ts`, à confirmer avec `pnpm worker:probe`.
+- Plateformes historiques incluses (décision ouverte n°5) : Arcade, Atari, Neo Geo, Amiga, plus DOS dans la famille PC. Liste blanche par slug dans `packages/shared/src/platforms.ts`, vérifiée avec `pnpm worker:probe` le 2026-10-12 (56 plateformes reconnues sur 220).
 - L'import complet ne demande à IGDB que les jeux des types retenus avec jaquette. Les jeux non sortis ou sans plateforme de la liste blanche sont stockés en `excluded` avec une raison `inclusion:*`. Un jeu non sorti est reclassé automatiquement quand sa date passe.
 - La sync incrémentale prend tous les jeux modifiés (sans filtre de type ni de jaquette), pour pouvoir aussi exclure un jeu qui change.
 - Point de départ de la sync : `max(games.igdb_updated_at)`.
