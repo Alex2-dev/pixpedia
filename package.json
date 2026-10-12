@@ -1,0 +1,37 @@
+{
+  "name": "pixpedia",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@10.18.3",
+  "engines": {
+    "node": ">=22.9"
+  },
+  "scripts": {
+    "dev": "docker compose up",
+    "typecheck": "pnpm -r typecheck",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "db:generate": "pnpm --filter @pixpedia/db generate",
+    "db:migrate": "pnpm --filter @pixpedia/db migrate",
+    "worker:probe": "pnpm --filter @pixpedia/worker cli probe",
+    "worker:import": "pnpm --filter @pixpedia/worker cli import",
+    "worker:sync": "pnpm --filter @pixpedia/worker cli sync",
+    "worker:series": "pnpm --filter @pixpedia/worker cli series"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@types/node": "^26.6.5",
+    "eslint": "^10.12.0",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "globals": "^17.13.0",
+    "prettier": "^3.9.10",
+    "tsx": "^4.23.15",
+    "typescript": "~6.0.3",
+    "typescript-eslint": "^8.71.2",
+    "vitest": "^5.0.4"
+  }
+}
