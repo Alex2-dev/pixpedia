@@ -6,5 +6,11 @@
   "scripts": {
     "cli": "tsx --env-file-if-exists=../../.env src/cli.ts",
     "typecheck": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@pixpedia/db": "workspace:*",
+    "@pixpedia/shared": "workspace:*",
+    "drizzle-orm": "^0.45.4",
+    "zod": "^4.6.7"
   }
 }

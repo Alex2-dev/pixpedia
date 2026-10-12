@@ -6,3 +6,4 @@ export * from './family';
 export * from './rarity';
 export * from './catalog';
 export * from './schemas';
+export * from './platforms';
