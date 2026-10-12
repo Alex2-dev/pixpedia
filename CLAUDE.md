@@ -1,0 +1,46 @@
+# Pixpedia — règles du projet
+
+Jeu web de cartes à collectionner, chaque carte = un jeu vidéo réel (IGDB). Studio Alex² (GIE, 2 devs).
+Spec : `docs/spec.md` (v1.5). **Les règles ci-dessous priment sur la spec.** Décisions : `docs/decisions.md`.
+
+## Stack et commandes
+
+- Monorepo pnpm : `apps/{web,api,worker}`, `packages/{shared,db}`. TypeScript strict, ESLint, Prettier, Vitest.
+- Les paquets internes exportent leur `src/*.ts` directement (pas de build), exécutés via `tsx`.
+- `docker compose up` (pnpm install sur l'hôte avant). Ports hôte : Postgres 5436, API 3014, web 5186.
+- `pnpm test`, `pnpm typecheck`, `pnpm lint`, `pnpm worker:{probe,import,sync,series}`, `pnpm db:{generate,migrate}`.
+- Toute logique de calcul va dans `packages/shared`, en fonctions pures, **avec tests Vitest**.
+- Schéma : `packages/db/src/schema.ts` puis `pnpm db:generate`. Jamais de modification manuelle de la base en prod.
+
+## Règles de jeu
+
+- **Raretés** (clé / nom / couleur / coût) : `starter` Starter #8A93A6 1, `bonus` Bonus #3FB27F 2, `combo` Combo #3D8BFF 3,
+  `boss` Boss #A05CFF 4, `final` Boss final #FF8A3D 5, `hof` Hall of Fame (holo, dégradé) 6. Source : `packages/shared/src/constants.ts`.
+- Rareté = **score de prestige** : `WR = (v/(v+m))·R + (m/(v+m))·C`, `score = WR × log10(1 + v)`, `m = 50`.
+  Classement **par décennie**, seuils en percentiles (`DEFAULT_RARITY_PARAMS`). Sans note → Starter.
+- **Rareté figée par série** (`series.released_at` non nul = figée). La cote hebdo (`games.prestige_score`) est affichée seulement.
+- **Stats** en percentiles 10–99 : ATK = note, DEF = nb de votes, PV = temps de jeu, VIT = inverse du temps de jeu.
+  Défauts : ATK 40 sans note, PV/VIT 50 sans durée. **Figées à la création de la carte.**
+- **Familles** (depuis les genres IGDB) : Action, Stratégie, Vitesse, Aventure, RPG.
+  Cycle Action > Stratégie > Vitesse > Aventure > RPG > Action, +20 % de dégâts.
+- Le **système de combat n'est pas tranché** : ne pas le coder. Champ `cards.combat` (jsonb) réservé.
+- Exclusion du contenu sexuel (spec §4) : `eligible` / `quarantine` / `excluded`, en cas de doute quarantaine.
+
+## Argent — non négociable
+
+- Chaque carte possédée aura `is_bound` (liée = non revendable).
+- **Règle JONUM : on ne peut jamais payer pour obtenir au hasard une carte revendable.** Payant + aléatoire ⇒ cartes liées.
+- Paiements **en France uniquement** au lancement (`country_features`). Aucun paiement codé pour l'instant.
+
+## Sécurité et qualité
+
+- Secrets (`TWITCH_*`, `DATABASE_URL`, …) dans `.env` uniquement, jamais dans le code ni git.
+- Entrées validées avec zod. IGDB : jamais plus de 4 req/s ni 8 requêtes en parallèle (plafond codé dans `apps/worker/src/config.ts`).
+- Commits petits, clairs, **en français**.
+
+## Direction artistique (front, plus tard)
+
+- Sombre, gaming, pixel. Encre #120E1A, Pierre #1E1828, Ombre #2E2639, Parchemin #EADFC8, Cendre #A79DB3, Rune #4FE3D1.
+- Police pixel pour labels et chiffres, Cinzel pour les titres, Alegreya Sans pour le texte.
+- Ombres dures en pixel, pas de halos flous.
+- 3D et animations en CSS (`transform`, `opacity`) + Motion + @use-gesture. Toujours respecter `prefers-reduced-motion`.
