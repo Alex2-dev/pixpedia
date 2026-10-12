@@ -53,8 +53,19 @@ describe('classifyGame : quarantaine', () => {
     });
   });
 
-  it('R3 mot-clé dans les keywords IGDB', () => {
+  it('R3 mot-clé explicite dans les keywords IGDB', () => {
     expect(classify({ keywords: ['NSFW'] }).reason).toBe('content:keyword:nsfw');
+    expect(classify({ keywords: ['hentai'] }).reason).toBe('content:keyword:hentai');
+  });
+
+  it('R3 ignore les tags descriptifs des jeux grand public (BioShock, Mass Effect 2…)', () => {
+    expect(classify({ keywords: ['sex work', 'nudity', 'sexy outfits', 'nude'] }).status).toBe(
+      'eligible',
+    );
+  });
+
+  it('R3 garde la liste complète pour le nom du jeu', () => {
+    expect(classify({ name: 'Sexy Beach Zero' }).reason).toBe('content:keyword:sexy');
   });
 
   it('R4 contenu sexuel fort et faible popularité', () => {

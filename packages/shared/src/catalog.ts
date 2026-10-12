@@ -6,7 +6,29 @@ import type { GameStatus } from './constants';
  */
 export const INCLUDED_GAME_TYPES = [0, 8, 9] as const;
 
-/** Mots-clés qui envoient un jeu en quarantaine (règle R3), cherchés en mots entiers. */
+/**
+ * Termes explicites : quarantaine s'ils apparaissent dans le nom **ou** dans les keywords IGDB.
+ */
+export const EXPLICIT_KEYWORDS = [
+  'hentai',
+  'eroge',
+  'ecchi',
+  'nsfw',
+  '18+',
+  'r18',
+  'r-18',
+  'porn',
+  'porno',
+  'pornographic',
+  'pornography',
+  'xxx',
+  'strip poker',
+] as const;
+
+/**
+ * Termes cherchés dans le **nom** seulement (règle R3). Dans les keywords IGDB, des tags comme
+ * « sex work » ou « nudity » décrivent aussi des jeux grand public (BioShock, Mass Effect 2) : spec §4.1.
+ */
 export const QUARANTINE_KEYWORDS = [
   'hentai',
   'eroge',
@@ -61,15 +83,29 @@ function escapeRegExp(s: string): string {
   return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
-const KEYWORD_RE = new RegExp(
-  `(?<![\\p{L}\\p{N}])(${QUARANTINE_KEYWORDS.map(escapeRegExp).join('|')})(?![\\p{L}\\p{N}])`,
-  'iu',
-);
+function wholeWords(terms: readonly string[]): RegExp {
+  return new RegExp(
+    `(?<![\\p{L}\\p{N}])(${terms.map(escapeRegExp).join('|')})(?![\\p{L}\\p{N}])`,
+    'iu',
+  );
+}
 
-/** Premier mot-clé sensible trouvé dans `text`, en mot entier. */
-export function findQuarantineKeyword(text: string): string | null {
-  const m = KEYWORD_RE.exec(text.normalize('NFKC'));
+const NAME_RE = wholeWords([...QUARANTINE_KEYWORDS, ...EXPLICIT_KEYWORDS]);
+const TAG_RE = wholeWords(EXPLICIT_KEYWORDS);
+
+function firstMatch(re: RegExp, text: string): string | null {
+  const m = re.exec(text.normalize('NFKC'));
   return m ? (m[1] as string).toLowerCase() : null;
+}
+
+/** Premier mot-clé sensible trouvé dans un nom de jeu, en mot entier. */
+export function findQuarantineKeyword(text: string): string | null {
+  return firstMatch(NAME_RE, text);
+}
+
+/** Premier terme explicite trouvé dans un keyword IGDB, en mot entier. */
+export function findExplicitTag(tag: string): string | null {
+  return firstMatch(TAG_RE, tag);
 }
 
 /**
@@ -92,7 +128,7 @@ export function classifyGame(game: ClassifyInput, now: Date = new Date()): Class
 
   const keyword =
     findQuarantineKeyword(game.name) ??
-    game.keywords.map(findQuarantineKeyword).find((k) => k !== null) ??
+    game.keywords.map(findExplicitTag).find((k) => k !== null) ??
     null;
   if (keyword) return { status: 'quarantine', reason: `content:keyword:${keyword}` };
 

@@ -58,7 +58,7 @@ Décisions prises en cours de développement, en complément de la spec (`spec.m
 
 - Ordre des règles : liste noire (R5), thème Erotic (R1), ESRB Adults Only (R2) ⇒ exclu ; puis critères d'inclusion ; puis mots-clés (R3) et « Strong Sexual Content » avec moins de 10 votes (R4) ⇒ quarantaine.
 - R4 : la « faible popularité » est mesurée par `total_rating_count < 10`, sans appel à `popularity_primitives`.
-- R3 : recherche en mots entiers (pas de faux positif sur « Hero » ou « Essex »), dans le nom et les keywords IGDB.
+- R3 : recherche en mots entiers (pas de faux positif sur « Hero » ou « Essex »). Liste complète (sex, nudity…) dans le **nom** seulement. Dans les **keywords IGDB**, seuls les termes explicites comptent (hentai, eroge, porn, nsfw, 18+…) : au premier import réel, les tags « sex work » et « nudity » mettaient en quarantaine BioShock, Mass Effect 2, God of War, etc. (58 jeux sur 500).
 - Identifiants ESRB / thème résolus par leur nom ou slug via des champs IGDB étendus, jamais codés en dur.
 
 ### Technique
