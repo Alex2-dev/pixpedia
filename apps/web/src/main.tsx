@@ -8,6 +8,7 @@ import { Collection } from './pages/Collection';
 import { DevAnimations } from './pages/DevAnimations';
 import { Gallery } from './pages/Gallery';
 import { SetDetail } from './pages/SetDetail';
+import { Settings } from './pages/Settings';
 import { Sets } from './pages/Sets';
 import { Home } from './pages/Home';
 import { OpenPack } from './pages/OpenPack';
@@ -55,6 +56,14 @@ createRoot(document.getElementById('root') as HTMLElement).render(
             />
             {/* Ancien nom, gardé pour les liens existants. */}
             <Route path="classeur" element={<Navigate to="/codex" replace />} />
+            <Route
+              path="reglages"
+              element={
+                <Private>
+                  <Settings />
+                </Private>
+              }
+            />
             <Route path="carte/:id" element={<CardDetail />} />
             <Route path="sets" element={<Sets />} />
             <Route path="sets/:type/:key" element={<SetDetail />} />

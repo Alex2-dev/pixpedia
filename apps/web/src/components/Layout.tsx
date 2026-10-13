@@ -19,6 +19,7 @@ export function Layout() {
             </NavLink>
             <NavLink to="/codex">Codex</NavLink>
             <NavLink to="/sets">Sets</NavLink>
+            <NavLink to="/reglages">Réglages</NavLink>
           </nav>
         )}
         <div className="account">
@@ -30,7 +31,9 @@ export function Layout() {
               <span className="px-label shards" title="Éclats">
                 ◆ {me.shards}
               </span>
-              <span className="username">{me.username}</span>
+              <Link to="/reglages" className="username" title="Réglages">
+                {me.username}
+              </Link>
               <button
                 type="button"
                 className="btn-link"
