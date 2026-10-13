@@ -131,7 +131,7 @@ export function Collection() {
   return (
     <section className="collection">
       <header className="collection-head">
-        <h1>Classeur</h1>
+        <h1>Codex</h1>
         {total !== null && <span className="px-label muted">{total} cartes</span>}
       </header>
 
@@ -195,7 +195,7 @@ export function Collection() {
           <p className="muted">
             {filters.rarity || filters.family || filters.search
               ? 'Aucune carte ne correspond à ces filtres.'
-              : 'Ton classeur est vide pour l’instant.'}
+              : 'Ton codex est vide pour l’instant.'}
           </p>
           <Link to="/" className="btn">
             Ouvrir un pack

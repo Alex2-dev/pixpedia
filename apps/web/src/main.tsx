@@ -46,13 +46,15 @@ createRoot(document.getElementById('root') as HTMLElement).render(
               }
             />
             <Route
-              path="classeur"
+              path="codex"
               element={
                 <Private>
                   <Collection />
                 </Private>
               }
             />
+            {/* Ancien nom, gardé pour les liens existants. */}
+            <Route path="classeur" element={<Navigate to="/codex" replace />} />
             <Route path="carte/:id" element={<CardDetail />} />
             <Route path="sets" element={<Sets />} />
             <Route path="sets/:type/:key" element={<SetDetail />} />

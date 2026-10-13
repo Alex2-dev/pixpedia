@@ -96,8 +96,8 @@ function PackHome() {
   const thematic = packs.filter((p) => p.cost > 0);
   const canOpen = me.packsAvailable > 0 && standard;
   /** `paid` : pack payé en éclats, l'écran d'ouverture ne propose pas d'en rouvrir un. */
-  const go = (packTypeId: number, useShards = false, paid = useShards) =>
-    navigate('/ouverture', { state: openPackState(packTypeId, useShards, paid) });
+  const go = (packTypeId: number, useShards = false, paid = useShards, count = 1) =>
+    navigate('/ouverture', { state: openPackState(packTypeId, { count, useShards, paid }) });
 
   return (
     <section className="pack-home">
@@ -133,14 +133,25 @@ function PackHome() {
           )}
         </p>
         {me.packsAvailable > 0 || !standard ? (
-          <button
-            type="button"
-            className="btn"
-            disabled={!canOpen}
-            onClick={() => go(standard!.id)}
-          >
-            Ouvrir un pack
-          </button>
+          <div className="pack-buttons">
+            <button
+              type="button"
+              className="btn"
+              disabled={!canOpen}
+              onClick={() => go(standard!.id)}
+            >
+              Ouvrir un pack
+            </button>
+            {me.packsAvailable > 1 && standard && (
+              <button
+                type="button"
+                className="btn btn-ghost"
+                onClick={() => go(standard.id, false, false, me.packsAvailable)}
+              >
+                Ouvrir mes {me.packsAvailable} packs
+              </button>
+            )}
+          </div>
         ) : (
           <button
             type="button"

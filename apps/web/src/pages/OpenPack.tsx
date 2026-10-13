@@ -1,214 +1,170 @@
-import { motion, useReducedMotion } from 'motion/react';
 import { useEffect, useState } from 'react';
-import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
-import { rarityRank, type Rarity } from '@pixpedia/shared';
-import { api, errorMessage, type OpenResult } from '../api';
+import { Navigate, useLocation, useNavigate } from 'react-router-dom';
+import {
+  DEFAULT_PACK_ODDS,
+  formatChance,
+  perCardChance,
+  type Rarity,
+  type SlotOdds,
+} from '@pixpedia/shared';
+import { api, errorMessage, type OpenResult, type PacksResponse } from '../api';
 import { toCardData } from '../card/adapt';
-import { Card } from '../card/Card';
-import { RARITY_STYLE } from '../card/types';
+import { PackOpening } from '../features/pack-opening/PackOpening';
+import type { OpeningCard } from '../features/pack-opening/types';
 import { useSession } from '../session';
-import { useCardWidth } from '../useCardWidth';
+import { useReducedMotionPref } from '../useReducedMotion';
 
 export interface OpenPackState {
   packTypeId: number;
   /** Payer en éclats un pack standard quand le stock est vide. */
   useShards: boolean;
-  /** Pack payé en éclats : on ne propose pas d'en rouvrir un directement. */
+  /** Pack payé en éclats : « Rejouer » ramène à l'accueil au lieu de rouvrir. */
   paid: boolean;
   /**
-   * Clé d'idempotence, créée au clic et gardée dans l'historique du navigateur :
-   * recharger la page rejoue le même tirage au lieu d'ouvrir un nouveau pack.
+   * Une clé d'idempotence par pack, créées au clic et gardées dans l'historique du navigateur :
+   * recharger la page rejoue les mêmes tirages au lieu d'ouvrir de nouveaux packs.
    */
-  key: string;
+  keys: string[];
 }
 
 export function openPackState(
   packTypeId: number,
-  useShards = false,
-  paid = useShards,
+  {
+    count = 1,
+    useShards = false,
+    paid = useShards,
+  }: { count?: number; useShards?: boolean; paid?: boolean } = {},
 ): OpenPackState {
-  return { packTypeId, useShards, paid, key: crypto.randomUUID() };
+  return {
+    packTypeId,
+    useShards,
+    paid,
+    keys: Array.from({ length: count }, () => crypto.randomUUID()),
+  };
 }
 
-/** Les raretés Boss et au-dessus ont droit à un éclat à la révélation. */
-const isBig = (r: Rarity) => rarityRank(r) >= rarityRank('boss');
-
 /**
- * Ouverture d'un pack. Le tirage est décidé par le serveur ; l'animation ne fait que
- * rejouer le résultat (spec §8.4). La clé d'idempotence protège du double appel.
+ * Ouverture d'un ou plusieurs packs. Les tirages sont décidés par le serveur (spec §8.4) et
+ * demandés dès l'arrivée sur l'écran : l'animation ne fait que rejouer le résultat.
  */
 export function OpenPack() {
   const location = useLocation();
   const navigate = useNavigate();
   const { me, setMe, refresh } = useSession();
-  const reduce = useReducedMotion();
+  const reduced = useReducedMotionPref();
   const state = location.state as Partial<OpenPackState> | null;
+  const keys = state?.keys;
   const packTypeId = state?.packTypeId;
-  const useShards = state?.useShards ?? false;
-  const key = state?.key;
-  const [result, setResult] = useState<OpenResult | null>(null);
+  const [cards, setCards] = useState<OpeningCard[] | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [revealed, setRevealed] = useState<boolean[]>([]);
-  const width = useCardWidth(200, 2);
+  const [last, setLast] = useState<OpenResult | null>(null);
+  const [pack, setPack] = useState<{ name: string; odds: SlotOdds[] }>({
+    name: 'Pack',
+    odds: DEFAULT_PACK_ODDS,
+  });
 
   useEffect(() => {
-    if (!packTypeId || !key) return;
-    let cancelled = false;
-    api<OpenResult>('/packs/open', {
-      method: 'POST',
-      body: { packTypeId, idempotencyKey: key, useShards },
-    }).then(
+    if (!packTypeId) return;
+    api<PacksResponse>('/packs').then(
       (r) => {
-        if (cancelled) return;
-        setResult(r);
-        setRevealed(r.cards.map(() => false));
+        const p = r.packs.find((x) => x.id === packTypeId);
+        if (p) setPack({ name: p.name, odds: p.odds });
       },
-      (err) => !cancelled && setError(errorMessage(err)),
+      () => {},
     );
+  }, [packTypeId]);
+
+  useEffect(() => {
+    if (!packTypeId || !keys?.length) return;
+    let cancelled = false;
+    (async () => {
+      const opened: OpeningCard[] = [];
+      let lastResult: OpenResult | null = null;
+      for (const [i, key] of keys.entries()) {
+        try {
+          const r = await api<OpenResult>('/packs/open', {
+            method: 'POST',
+            body: { packTypeId, idempotencyKey: key, useShards: state?.useShards ?? false },
+          });
+          lastResult = r;
+          opened.push(
+            ...r.cards.map((c) => ({
+              card: toCardData(c),
+              rarity: c.rarity,
+              pack: i + 1,
+              isNew: c.isNew,
+            })),
+          );
+        } catch (err) {
+          if (!cancelled) {
+            setError(
+              opened.length
+                ? `Seuls ${i} pack${i > 1 ? 's ont pu être ouverts' : ' a pu être ouvert'}. ${errorMessage(err)}`
+                : errorMessage(err),
+            );
+          }
+          break;
+        }
+      }
+      if (cancelled) return;
+      if (opened.length) setCards(opened);
+      if (lastResult) setLast(lastResult);
+    })();
     return () => {
       cancelled = true;
     };
-  }, [packTypeId, key, useShards]);
+    // Les clés suffisent à identifier les tirages.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [packTypeId, keys?.join()]);
 
-  // Met à jour le stock affiché dans l'en-tête dès que le tirage est connu.
+  // Stock et éclats à jour dans l'en-tête dès que les tirages sont connus.
   useEffect(() => {
-    if (result && me) {
+    if (last && me) {
       setMe({
         ...me,
-        packsAvailable: result.packsAvailable,
-        nextPackAt: result.nextPackAt,
-        pityCounter: result.pityCounter,
-        shards: result.shards,
+        packsAvailable: last.packsAvailable,
+        nextPackAt: last.nextPackAt,
+        pityCounter: last.pityCounter,
+        shards: last.shards,
       });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [result]);
+  }, [last]);
 
-  if (!packTypeId || !key) return <Navigate to="/" replace />;
+  if (!packTypeId || !keys?.length) return <Navigate to="/" replace />;
 
-  if (error) {
-    return (
-      <section className="panel center">
-        <p className="error" role="alert">
-          {error}
-        </p>
-        <Link to="/" className="btn">
-          Retour aux packs
-        </Link>
-      </section>
-    );
-  }
-
-  if (!result) {
-    return (
-      <div className="opening" aria-live="polite">
-        <motion.div
-          className="pack-shake"
-          animate={reduce ? undefined : { rotate: [0, -3, 3, -2, 2, 0] }}
-          transition={{ duration: 0.6, repeat: Infinity }}
-        >
-          <span className="px-label">Ouverture du pack…</span>
-        </motion.div>
-      </div>
-    );
-  }
-
-  const reveal = (i: number) => setRevealed((r) => r.map((v, j) => (j === i ? true : v)));
-  const nextHidden = revealed.indexOf(false);
-  const allRevealed = nextHidden === -1;
-  const newCount = result.cards.filter((c) => c.isNew).length;
+  const count = keys.length;
+  const canReplay = !state?.paid && (last?.packsAvailable ?? 0) > 0;
+  const replayCount = Math.min(count, last?.packsAvailable ?? 0);
 
   return (
-    <section className="opening">
-      <div className="reveal-grid" style={{ ['--card-w' as string]: `${width}px` }}>
-        {result.cards.map((c, i) => {
-          const shown = revealed[i]!;
-          const big = shown && isBig(c.rarity);
-          return (
-            <motion.div
-              key={c.cardId}
-              className="reveal-slot"
-              initial={reduce ? false : { opacity: 0, y: 40, rotate: -4 }}
-              animate={{ opacity: 1, y: 0, rotate: 0 }}
-              transition={{
-                delay: reduce ? 0 : i * 0.12,
-                type: 'spring',
-                stiffness: 260,
-                damping: 22,
-              }}
-            >
-              {big && !reduce && (
-                <motion.span
-                  className="burst"
-                  style={{ ['--burst' as string]: RARITY_STYLE[c.rarity].color }}
-                  initial={{ opacity: 0.9, scale: 0.6 }}
-                  animate={{ opacity: 0, scale: 1.6 }}
-                  transition={{ duration: 0.9, ease: 'easeOut' }}
-                  aria-hidden="true"
-                />
-              )}
-              <Card
-                data={toCardData(c)}
-                width={width}
-                flipped={!shown}
-                tilt={shown}
-                onActivate={() => (shown ? navigate(`/carte/${c.cardId}`) : reveal(i))}
-              />
-              {shown && (
-                <span
-                  className="px-label reveal-label"
-                  style={{ color: RARITY_STYLE[c.rarity].color }}
-                >
-                  {RARITY_STYLE[c.rarity].label}
-                </span>
-              )}
-            </motion.div>
-          );
-        })}
-      </div>
-
-      <div className="reveal-actions" aria-live="polite">
-        {!allRevealed ? (
-          <>
-            <button type="button" className="btn" onClick={() => reveal(nextHidden)}>
-              Révéler la suivante
-            </button>
-            <button
-              type="button"
-              className="btn btn-ghost"
-              onClick={() => setRevealed((r) => r.map(() => true))}
-            >
-              Tout révéler
-            </button>
-          </>
-        ) : (
-          <>
-            <p className="muted">
-              {newCount > 0
-                ? `${newCount} nouvelle${newCount > 1 ? 's' : ''} carte${newCount > 1 ? 's' : ''} dans ton classeur.`
-                : 'Que des cartes que tu avais déjà.'}
-            </p>
-            {state?.paid ? (
-              <Link to="/" className="btn">
-                Retour aux packs
-              </Link>
-            ) : (
-              result.packsAvailable > 0 && (
-                <button
-                  type="button"
-                  className="btn"
-                  onClick={() => navigate('/ouverture', { state: openPackState(packTypeId) })}
-                >
-                  Ouvrir un autre pack ({result.packsAvailable})
-                </button>
-              )
-            )}
-            <Link to="/classeur" className="btn btn-ghost" onClick={() => void refresh()}>
-              Voir le classeur
-            </Link>
-          </>
-        )}
-      </div>
-    </section>
+    <PackOpening
+      packCount={cards ? Math.max(...cards.map((c) => c.pack)) : count}
+      packName={pack.name}
+      cards={cards}
+      error={error}
+      reduced={reduced}
+      hofSeen={me?.hofSeen ?? true}
+      username={me?.username}
+      chance={(r: Rarity) => formatChance(perCardChance(r, pack.odds))}
+      replayLabel={
+        canReplay
+          ? `Rejouer (${replayCount} pack${replayCount > 1 ? 's' : ''})`
+          : 'Retour aux packs'
+      }
+      onAddToCodex={() => {
+        void refresh();
+        navigate('/codex');
+      }}
+      onReplay={() =>
+        canReplay
+          ? navigate('/ouverture', { state: openPackState(packTypeId, { count: replayCount }) })
+          : navigate('/')
+      }
+      onClose={() => navigate('/')}
+      onHofSeen={() => {
+        void api('/me/hof-seen', { method: 'POST' }).catch(() => {});
+      }}
+    />
   );
 }

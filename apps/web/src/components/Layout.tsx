@@ -17,7 +17,7 @@ export function Layout() {
             <NavLink to="/" end>
               Packs
             </NavLink>
-            <NavLink to="/classeur">Classeur</NavLink>
+            <NavLink to="/codex">Codex</NavLink>
             <NavLink to="/sets">Sets</NavLink>
           </nav>
         )}

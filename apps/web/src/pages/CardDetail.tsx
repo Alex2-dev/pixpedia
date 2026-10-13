@@ -43,8 +43,8 @@ export function CardDetail() {
     return (
       <section className="panel center">
         <p className="error">Carte introuvable.</p>
-        <Link to="/classeur" className="btn">
-          Retour au classeur
+        <Link to="/codex" className="btn">
+          Retour au codex
         </Link>
       </section>
     );
@@ -94,7 +94,7 @@ export function CardDetail() {
         </dl>
         {card.owned.length > 0 ? (
           <div className="small">
-            <span className="px-label muted">Dans ton classeur</span>
+            <span className="px-label muted">Dans ton codex</span>
             <ul className="owned">
               {card.owned.map((o) => (
                 <li key={`${o.finish}-${o.isBound}`}>

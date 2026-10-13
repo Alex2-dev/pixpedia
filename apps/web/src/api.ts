@@ -65,6 +65,9 @@ export interface Me {
   pityCounter: number;
   shards: number;
   coins: number;
+  reducedMotion: boolean;
+  /** false tant que le joueur n'a jamais vu d'animation Hall of Fame. */
+  hofSeen: boolean;
 }
 
 export interface PackType {
