@@ -18,7 +18,8 @@
   flex-shrink: 0;
   width: 390px;
   height: 844px;
-  overflow: hidden;
+  /* Pas de cadre : les rayons et halos débordent sur tout l'écran (.op-screen coupe aux bords). */
+  overflow: visible;
   background: #120e1a;
   color: #eadfc8;
   font-family: 'Alegreya Sans', sans-serif;

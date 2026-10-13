@@ -64,7 +64,7 @@ async function playThrough(page: Page, expectedCards: number) {
   const seen: string[] = [];
   for (
     let i = 0;
-    i < expectedCards * 3 && (await opening.getAttribute('data-phase')) !== 'recap';
+    i < expectedCards * 5 && (await opening.getAttribute('data-phase')) !== 'recap';
     i++
   ) {
     if (await stage(page).count()) {

@@ -18,7 +18,7 @@ Référence exacte : `docs/design/pixpedia-animations.html` (timelines et keyfra
   - Pourcentages calculés depuis les vrais taux du pack (Boss 5,4 % · 1 sur 19, Boss final 1,6 % · 1 sur 63, Hall of Fame 0,2 % · 1 sur 500) au lieu des valeurs d'exemple.
   - « Ajouter au codex » mène au codex : les cartes y sont déjà depuis l'ouverture (tirage côté serveur). « Classeur » est renommé « Codex » (`/classeur` redirige).
   - « Rejouer » rouvre le même nombre de packs si le stock le permet, sinon retour à l'accueil.
-  - Scène au format de la maquette (390 × 844), agrandie ou réduite pour tenir dans l'écran, sur ordinateur comme sur téléphone.
+  - **Plein écran, sans cadre** (demande de l'équipe après essai sur ordinateur) : fonds, chaleur, flashs, confettis et bandeau couvrent toute la fenêtre ; la carte, les anneaux, les particules et les titres gardent les positions de la maquette (390 × 844) dans un cœur centré, mis à l'échelle de l'écran (`.dp-core`). L'ouverture laisse aussi déborder ses rayons et halos.
   - Récap : vraies cartes réduites à 104 px au lieu de la mini-carte simplifiée.
   - Bouton ✕ ajouté sur l'écran du pack fermé, pour revenir sans ouvrir.
 - **Fiche carte** : « ▶ Voir l'animation de drop » pour Boss et plus, visible même sans posséder la carte ; « Tirée le JJ/MM/AAAA » si possédée (pour toutes les raretés).

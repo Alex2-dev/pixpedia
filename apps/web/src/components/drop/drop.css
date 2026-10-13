@@ -10,24 +10,31 @@
   position: fixed;
   inset: 0;
   z-index: 1000;
-  display: flex;
-  align-items: center;
-  justify-content: center;
   background: #120e1a;
   overflow: hidden;
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
 }
-/* Scène de la maquette (390 × 844), agrandie ou réduite pour tenir dans l'écran. */
+/*
+ * La scène couvre tout l'écran : fonds, flashs, confettis et bandeau en pleine largeur.
+ * Le cœur (carte, anneaux, particules, titres) garde les positions de la maquette
+ * (390 × 844), centré et mis à l'échelle de l'écran.
+ */
 .dp-stage {
-  position: relative;
-  flex-shrink: 0;
-  width: 390px;
-  height: 844px;
+  position: absolute;
+  inset: 0;
   overflow: hidden;
   background: #120e1a;
   color: #eadfc8;
   font-family: 'Alegreya Sans', sans-serif;
+}
+.dp-core {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 390px;
+  height: 844px;
+  margin: -422px 0 0 -195px;
   transform: scale(var(--dp-scale, 1));
 }
 .dp-abs {
@@ -61,6 +68,8 @@
   left: 20px;
   right: 20px;
   bottom: 40px;
+  max-width: 420px;
+  margin: 0 auto;
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -888,7 +897,7 @@
   }
   100% {
     opacity: 0.4;
-    transform: translateY(900px) rotate(540deg);
+    transform: translateY(calc(100vh + 40px)) rotate(540deg);
   }
 }
 .h-ticker {
@@ -900,7 +909,7 @@
 }
 @keyframes hTick {
   from {
-    transform: translateX(390px);
+    transform: translateX(100vw);
   }
   to {
     transform: translateX(-100%);
