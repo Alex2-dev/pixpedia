@@ -109,13 +109,13 @@ function PackHome() {
         aria-label="Ouvrir un pack standard"
       >
         <span className="pack-card pack-card-3">
-          <CardBack data={{}} />
+          <CardBack />
         </span>
         <span className="pack-card pack-card-2">
-          <CardBack data={{}} />
+          <CardBack />
         </span>
         <span className="pack-card pack-card-1">
-          <CardBack data={{}} />
+          <CardBack />
         </span>
       </button>
       <div className="pack-info">

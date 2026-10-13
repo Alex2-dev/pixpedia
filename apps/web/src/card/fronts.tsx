@@ -1,4 +1,7 @@
 import type { CSSProperties, ReactNode } from 'react';
+import { getCardBack } from '@pixpedia/shared';
+import { CardBackOf } from './backs';
+import { ArenaFront, FullArtFront, HoloOverlay } from './editions';
 import { Lock, Logo, Px, Scene, Wordmark, step } from './pixel';
 import { FAMILY_TEXT, RARITY_STYLE, type CardData, type RarityStyle } from './types';
 
@@ -17,7 +20,6 @@ interface PartsOptions {
 /** Morceaux communs à tous les designs (illustration, badge, coût, stats, pied). */
 function parts(d: CardData, R: RarityStyle, o: PartsOptions = {}) {
   const ring = o.ring ?? R.color;
-  const finishTag = d.finish === 'holo' ? 'HOLO' : d.finish === 'fullart' ? 'FULL ART' : null;
   const meta = [d.year, d.platform?.toUpperCase(), d.family ? FAMILY_TEXT[d.family] : null]
     .filter(Boolean)
     .join(' · ');
@@ -29,7 +31,6 @@ function parts(d: CardData, R: RarityStyle, o: PartsOptions = {}) {
         ) : (
           <Scene seed={d.id || 1} colors={R.scene} />
         )}
-        {finishTag && <div className="foil" />}
       </>
     ),
     badge: (
@@ -48,12 +49,7 @@ function parts(d: CardData, R: RarityStyle, o: PartsOptions = {}) {
         <Logo size={16} />
       </div>
     ),
-    tags: (
-      <div className="f-tags">
-        {d.isNew && <span className="f-new">NEW</span>}
-        {finishTag && <span className="f-finish">{finishTag}</span>}
-      </div>
-    ),
+    tags: <div className="f-tags">{d.isNew && <span className="f-new">NEW</span>}</div>,
     name: d.name.toUpperCase(),
     meta,
     stats: (
@@ -501,26 +497,35 @@ const hof: Front = (d, R) => {
 
 const FRONTS = { starter, bonus, combo, boss, final, hof };
 
-/** Variante VIP : remplace le design de rareté, garde les stats. */
+/**
+ * Variante VIP (maquette pixpedia-cartes-animations.html) : cadre or animé, « VARIANTE VIP »,
+ * rareté rappelée dans la méta, cadenas « LIÉE » (cartes du pack abonné, règle JONUM). Mêmes stats.
+ */
 function vip(d: CardData, R: RarityStyle) {
-  const p = parts(d, R, {
-    ring: '#E8C060',
-    statCell: { background: '#0B0906', border: '1px solid #6B5520' },
-    statVal: '#FFF1C2',
-    badgeBg: '#140F07',
-  });
   return (
     <div style={abs({ inset: 0, filter: glow('22px rgba(232,192,96,.45))') })}>
       <div
-        className="gold"
-        style={abs({ inset: 0, borderRadius: 12, background: 'var(--gold)' })}
+        className="c-gold"
+        style={abs({
+          inset: 0,
+          borderRadius: 12,
+          background: 'linear-gradient(135deg,#FFE7A0,#D9A93B 35%,#FFF1C2 50%,#B8862A 70%,#FFE7A0)',
+          backgroundSize: '200% 200%',
+        })}
       />
       <div
         className="f-body"
         style={{ inset: 5, borderRadius: 8, background: 'linear-gradient(180deg,#221A0B,#140F07)' }}
       >
-        <div className="f-cover" style={{ borderRadius: 4, border: '1px solid #E8C060' }}>
-          {p.cover}
+        <div
+          className="f-cover"
+          style={{ height: 146, borderRadius: 4, border: '1px solid #E8C060' }}
+        >
+          {d.cover ? (
+            <img src={d.cover} alt="" loading="lazy" />
+          ) : (
+            <Scene seed={d.id || 1} colors={['#6B5520', '#241B08', '#140F05', '#FFD86B']} />
+          )}
           <div
             style={abs({
               inset: 0,
@@ -531,34 +536,69 @@ function vip(d: CardData, R: RarityStyle) {
           />
           <div className="f-badge" style={{ background: '#140F07', border: '1px solid #E8C060' }}>
             <Px name="crown" color="#FFD86B" scale={2} />
-            <span style={{ color: '#FFD86B', fontSize: 8 }}>VIP · {R.label.toUpperCase()}</span>
+            <span style={{ color: '#FFD86B', fontSize: 8 }}>VARIANTE VIP</span>
           </div>
-          {p.cost}
-          <div className="f-stamp">
-            <Logo size={16} col="#FFE7A0" acc="#FFD23F" />
+          <div
+            className="f-cost"
+            style={{ borderColor: '#E8C060', color: '#FFD86B', background: '#140F07' }}
+          >
+            {d.cost}
           </div>
-          {p.tags}
+          <div className="f-stamp" style={{ opacity: 1, filter: 'none' }}>
+            <Logo size={16} />
+          </div>
+          <div className="f-tags">{d.isNew && <span className="f-new">NEW</span>}</div>
         </div>
-        <div className="f-name" style={{ color: '#FFF1C2' }}>
-          {p.name}
+        <div className="f-name" style={{ color: '#FFF1C2', textAlign: 'center' }}>
+          {d.name.toUpperCase()}
         </div>
-        <div className="f-meta" style={{ color: '#D9B66A' }}>
-          {p.meta}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <span className="f-meta" style={{ color: '#D9B66A' }}>
+            {[d.year, d.platform?.toUpperCase(), R.label.toUpperCase()].filter(Boolean).join(' · ')}
+          </span>
+          <span
+            className="px-label"
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 5,
+              background: '#140F07',
+              border: '1px solid #E8C060',
+              borderRadius: 3,
+              padding: '2px 6px',
+              fontSize: 7,
+              color: '#E8C060',
+              letterSpacing: 0,
+            }}
+          >
+            <Px name="lock" color="#E8C060" scale={2} />
+            LIÉE
+          </span>
         </div>
         <div className="f-grow" />
-        {p.stats}
+        <div className="f-stats">
+          {(['atk', 'def', 'pv', 'vit'] as const).map((k) => (
+            <div
+              key={k}
+              className="f-stat"
+              style={{ background: '#0B0906', border: '1px solid #6B5520' }}
+            >
+              <span style={{ color: '#D9B66A' }}>{k.toUpperCase()}</span>
+              <span style={{ color: '#FFF1C2' }}>{d.stats[k]}</span>
+            </div>
+          ))}
+        </div>
         <div className="f-foot" style={{ color: '#D9B66A' }}>
           <span>
             {d.number} · {d.series}
           </span>
-          <Lock text="LIÉE" color="#E8C060" />
           <Wordmark />
         </div>
       </div>
       <div
-        className="sheen"
+        className="c-sheen"
         style={{
-          borderRadius: 12,
+          ...abs({ inset: 0, borderRadius: 12, overflow: 'hidden', pointerEvents: 'none' }),
           ['--sh' as string]: 'rgba(255,240,200,.35)',
           ['--shd' as string]: '4s',
         }}
@@ -616,7 +656,7 @@ function eventFront(d: CardData) {
           {d.name.toUpperCase()}
         </div>
         <div className="f-meta" style={{ color: '#FFC48F', textAlign: 'center', fontSize: 7 }}>
-          PARCOURS DANS LE TOURNOI · EN DIRECT
+          PARCOURS DANS LE TOURNOI · MIS À JOUR EN DIRECT
         </div>
         <div style={{ display: 'flex', gap: 2, padding: '0 4px' }}>
           {e.steps.map((s) => (
@@ -662,51 +702,43 @@ function eventFront(d: CardData) {
 export function CardFront({ data }: { data: CardData }) {
   const R = RARITY_STYLE[data.rarity];
   if (data.event) return eventFront(data);
-  if (data.variant === 'vip') return vip(data, R);
-  return FRONTS[data.rarity](data, R);
+  // Éditions : Full art et Arène ont leur propre recto ; Holo s'ajoute sur la carte de sa rareté.
+  if (data.finish === 'arena') return <ArenaFront d={data} />;
+  if (data.finish === 'fullart') return <FullArtFront d={data} />;
+  const base = data.variant === 'vip' ? vip(data, R) : FRONTS[data.rarity](data, R);
+  if (data.finish === 'holo') {
+    return (
+      <div style={{ position: 'absolute', inset: 0 }}>
+        {base}
+        <HoloOverlay />
+      </div>
+    );
+  }
+  return base;
 }
 
-/** Verso, identique pour toutes les cartes, accent selon le type. */
-export function CardBack({ data }: { data: Pick<CardData, 'event' | 'variant'> }) {
-  const acc = data.event ? '#FF8A3D' : data.variant === 'vip' ? '#E8C060' : '#4FE3D1';
-  const label = data.event
-    ? 'ÉDITION ÉVÉNEMENT'
-    : data.variant === 'vip'
-      ? 'ÉDITION VIP'
-      : 'CARTE DE COLLECTION';
+/**
+ * Dos d'une carte. Sans `special` (ouverture de packs), toujours le dos standard : rien ne
+ * trahit la rareté ni la finition avant la révélation. Avec `special` : priorité de getCardBack.
+ */
+export function CardBack({
+  data,
+  special = false,
+}: {
+  data?: Pick<CardData, 'rarity' | 'finish' | 'variant' | 'event' | 'eventName'>;
+  special?: boolean;
+}) {
+  const kind =
+    data && special
+      ? getCardBack({
+          rarity: data.rarity,
+          finish: data.finish ?? 'normal',
+          variant: data.event ? 'event' : data.variant,
+        })
+      : 'standard';
   return (
-    <div
-      style={abs({
-        inset: 0,
-        borderRadius: 14,
-        background: acc,
-        padding: 4,
-        boxShadow: '3px 3px 0 rgba(0,0,0,.5),0 22px 34px rgba(0,0,0,.55)',
-      })}
-    >
-      <div
-        className="f-back"
-        style={{
-          background: `radial-gradient(ellipse 60% 45% at 50% 45%,${acc}2E,transparent 70%),var(--stone)`,
-        }}
-      >
-        <div
-          style={abs({
-            inset: 0,
-            backgroundImage: `linear-gradient(${acc}12 1px,transparent 1px),linear-gradient(90deg,${acc}12 1px,transparent 1px)`,
-            backgroundSize: '12px 12px',
-          })}
-        />
-        <div style={abs({ inset: 10, border: '1px solid #3A3147', borderRadius: 8 })} />
-        <div style={{ position: 'relative' }}>
-          <Logo size={96} col="#EADFC8" acc={acc} />
-        </div>
-        <div style={{ position: 'relative' }}>
-          <Wordmark fs={22} />
-        </div>
-        <div className="f-back-label">{label}</div>
-      </div>
-      <div className="sheen" style={{ borderRadius: 14 }} />
+    <div style={{ position: 'absolute', inset: 0 }} data-back={kind}>
+      <CardBackOf kind={kind} eventName={data?.eventName ?? undefined} />
     </div>
   );
 }

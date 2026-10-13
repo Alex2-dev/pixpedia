@@ -24,8 +24,11 @@ export interface CardData {
   cover: string | null;
   isNew?: boolean;
   isBound?: boolean;
-  /** Finition tirée : reflet holo ou full art sur l'illustration. */
+  /** Finition de l'exemplaire (apparence seulement) : normale, holo, full art ou Édition Arène. */
   finish?: Finish;
+  /** Édition Arène : nom de l'événement et date d'obtention (ISO). */
+  eventName?: string | null;
+  obtainedAt?: string | null;
   /** Cadre doré VIP (prévu, pas encore attribué). */
   variant?: 'normal' | 'vip';
   /** Carte d'événement (prévue, pas encore attribuée). */

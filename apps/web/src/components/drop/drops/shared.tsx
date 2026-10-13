@@ -17,7 +17,7 @@ export const chanceLine = (c: DropSceneProps['chance']) =>
 export function DropBack() {
   return (
     <div style={{ position: 'relative', width: 240, height: 336 }}>
-      <CardBack data={{}} />
+      <CardBack />
     </div>
   );
 }

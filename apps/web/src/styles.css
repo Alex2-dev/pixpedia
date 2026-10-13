@@ -751,3 +751,14 @@ h2 {
     animation: none;
   }
 }
+.gallery-item {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+.gallery-pair {
+  display: flex;
+  gap: 16px;
+}
