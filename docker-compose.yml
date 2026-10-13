@@ -55,6 +55,8 @@ services:
   web:
     <<: *node
     working_dir: /repo/apps/web
+    environment:
+      API_PROXY_TARGET: http://api:${API_PORT:-3014}
     command: ['node_modules/.bin/vite', '--host', '0.0.0.0', '--port', '${WEB_PORT:-5186}']
     ports:
       - '127.0.0.1:${WEB_PORT:-5186}:${WEB_PORT:-5186}'

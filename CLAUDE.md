@@ -41,9 +41,11 @@ Spec : `docs/spec.md` (v1.5). **Les règles ci-dessous priment sur la spec.** D�
 - Entrées validées avec zod. IGDB : jamais plus de 4 req/s ni 8 requêtes en parallèle (plafond codé dans `apps/worker/src/config.ts`).
 - Commits petits, clairs, **en français**.
 
-## Direction artistique (front, plus tard)
+## Direction artistique
 
 - Sombre, gaming, pixel. Encre #120E1A, Pierre #1E1828, Ombre #2E2639, Parchemin #EADFC8, Cendre #A79DB3, Rune #4FE3D1.
-- Police pixel pour labels et chiffres, Cinzel pour les titres, Alegreya Sans pour le texte.
+- Police pixel **Silkscreen** pour labels et chiffres, Cinzel pour les titres, Alegreya Sans pour le texte.
+- Composant carte : `apps/web/src/card/` (porté du design `pixpedia-carte.html`). Galerie de contrôle sur `/galerie` en dev.
+- Le front appelle l'API sur `/api` (même origine : proxy Vite en dev, Nginx en prod).
 - Ombres dures en pixel, pas de halos flous.
 - 3D et animations en CSS (`transform`, `opacity`) + Motion + @use-gesture. Toujours respecter `prefers-reduced-motion`.

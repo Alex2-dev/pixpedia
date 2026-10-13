@@ -1,0 +1,423 @@
+/* PIXPEDIA · COMPOSANT CARTE — styles repris du design (pixpedia-carte.html). */
+:root {
+  --r-starter: #8a93a6;
+  --r-bonus: #3fb27f;
+  --r-combo: #3d8bff;
+  --r-boss: #a05cff;
+  --r-final: #ff8a3d;
+  --r-hof: #4fe3d1;
+  --holo: conic-gradient(from 200deg, #2ee6ff, #a05cff, #ff4fb0, #ffd23f, #2ee6ff);
+  --gold: linear-gradient(135deg, #ffe7a0, #d9a93b 35%, #fff1c2 50%, #b8862a 70%, #ffe7a0);
+}
+
+/* ---------- Mise à l'échelle ---------- */
+.pxcard-box {
+  position: relative;
+  flex-shrink: 0;
+}
+.pxcard-box > .pxcard {
+  position: absolute;
+  top: 0;
+  left: 0;
+  transform-origin: top left;
+}
+
+/* ---------- Conteneur 3D + retournement ---------- */
+.pxcard {
+  position: relative;
+  width: 240px;
+  height: 336px;
+  perspective: 1000px;
+  cursor: pointer;
+  flex-shrink: 0;
+  font-family: 'Alegreya Sans', sans-serif;
+  color: var(--parch);
+  outline: none;
+}
+.pxcard:focus-visible .pxcard__tilt {
+  outline: 3px solid var(--rune);
+  outline-offset: 6px;
+  border-radius: 14px;
+}
+.pxcard__tilt {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  transform-style: preserve-3d;
+  transform: rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg));
+  transition: transform 0.15s ease-out;
+}
+.pxcard__inner {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  transform-style: preserve-3d;
+  transition: transform 0.6s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.pxcard.is-flipped .pxcard__inner {
+  transform: rotateY(180deg);
+}
+.pxcard__face {
+  position: absolute;
+  inset: 0;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+.pxcard__back {
+  transform: rotateY(180deg);
+}
+.pxcard__shine {
+  position: absolute;
+  inset: 0;
+  border-radius: 12px;
+  pointer-events: none;
+  z-index: 20;
+  opacity: 0;
+  transition: opacity 0.2s;
+  background: radial-gradient(
+    circle at var(--mx, 50%) var(--my, 50%),
+    rgba(255, 255, 255, 0.28),
+    rgba(255, 255, 255, 0) 45%
+  );
+  mix-blend-mode: overlay;
+}
+.pxcard:hover .pxcard__shine {
+  opacity: 1;
+}
+
+/* ---------- Pièces communes ---------- */
+.px-label,
+.f-badge,
+.f-cost,
+.f-new,
+.f-finish,
+.f-meta,
+.f-stat span,
+.f-foot,
+.f-lock,
+.wm,
+.f-event-head,
+.f-step span {
+  font-family: Silkscreen, monospace;
+}
+.f-body {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  padding: 8px;
+}
+.f-cover {
+  position: relative;
+  overflow: hidden;
+  height: 142px;
+  flex-shrink: 0;
+}
+.f-cover img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.f-badge {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  background: var(--ink);
+  border-radius: 4px;
+  padding: 3px 6px;
+  font-size: 9px;
+}
+.f-cost {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  z-index: 3;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--ink);
+  border: 2px solid var(--rune);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  color: var(--rune);
+}
+.f-stamp {
+  position: absolute;
+  bottom: 5px;
+  right: 5px;
+  z-index: 3;
+  opacity: 0.85;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.6));
+}
+.f-tags {
+  position: absolute;
+  bottom: 6px;
+  left: 6px;
+  z-index: 3;
+  display: flex;
+  gap: 4px;
+}
+.f-new,
+.f-finish {
+  font-size: 8px;
+  padding: 1px 4px;
+  border-radius: 2px;
+}
+.f-new {
+  background: var(--rune);
+  color: var(--ink);
+}
+.f-finish {
+  background: linear-gradient(90deg, #2ee6ff, #a05cff, #ff4fb0, #ffd23f);
+  color: var(--ink);
+}
+.f-name {
+  font-family: Cinzel, serif;
+  font-weight: 700;
+  font-size: 17px;
+  letter-spacing: 1px;
+  line-height: 1.1;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+.f-meta {
+  font-size: 8px;
+  color: var(--ash);
+}
+.f-grow {
+  flex-grow: 1;
+}
+.f-stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 4px;
+}
+.f-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 4px 0;
+  background: var(--ink);
+  border-radius: 3px;
+}
+.f-stat span:first-child {
+  font-size: 7px;
+  color: var(--ash);
+}
+.f-stat span:last-child {
+  font-size: 12px;
+  color: var(--parch);
+}
+.f-foot {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 7px;
+  color: var(--ash);
+}
+.f-lock {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border: 1px solid currentColor;
+  border-radius: 3px;
+  padding: 1px 5px;
+  font-size: 7px;
+}
+.wm {
+  white-space: nowrap;
+  line-height: 1;
+}
+.wm b {
+  font-weight: 400;
+  color: var(--rune);
+}
+.f-event-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #ff8a3d;
+  margin: -8px -8px 0;
+  padding: 4px 8px;
+  border-radius: 7px 7px 0 0;
+  font-size: 8px;
+  color: #1a120f;
+}
+.f-event-grid {
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(255, 138, 61, 0.08) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 138, 61, 0.08) 1px, transparent 1px);
+  background-size: 8px 8px;
+}
+.f-step {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+}
+.f-step span {
+  font-size: 6px;
+}
+.f-back {
+  position: relative;
+  height: 100%;
+  border-radius: 11px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+}
+.f-back-label {
+  position: relative;
+  font-family: Cinzel, serif;
+  font-weight: 700;
+  font-size: 9px;
+  letter-spacing: 3px;
+  color: var(--ash);
+}
+.sheen {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  border-radius: inherit;
+  z-index: 10;
+}
+.sheen::after {
+  content: '';
+  position: absolute;
+  top: -20%;
+  bottom: -20%;
+  left: -60%;
+  width: 45%;
+  background: linear-gradient(
+    105deg,
+    rgba(255, 255, 255, 0),
+    var(--sh, rgba(255, 255, 255, 0.18)),
+    rgba(255, 255, 255, 0)
+  );
+  animation: sheen var(--shd, 5s) ease-in-out infinite;
+}
+@keyframes sheen {
+  0% {
+    transform: translateX(0);
+  }
+  50%,
+  100% {
+    transform: translateX(480%);
+  }
+}
+
+/* ---------- Ornements animés ---------- */
+.holo {
+  animation: hue 4s linear infinite;
+}
+@keyframes hue {
+  to {
+    filter: hue-rotate(360deg);
+  }
+}
+.foil {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  mix-blend-mode: color-dodge;
+  opacity: 0.5;
+  background: linear-gradient(
+    115deg,
+    rgba(46, 230, 255, 0) 20%,
+    rgba(46, 230, 255, 0.6) 35%,
+    rgba(255, 79, 176, 0.6) 50%,
+    rgba(255, 210, 63, 0.6) 65%,
+    rgba(255, 210, 63, 0) 80%
+  );
+  background-size: 250% 250%;
+  animation: foil 4s ease-in-out infinite alternate;
+}
+@keyframes foil {
+  from {
+    background-position: 100% 0;
+  }
+  to {
+    background-position: 0 100%;
+  }
+}
+.gold {
+  background-size: 200% 200%;
+  animation: gold 5s ease-in-out infinite alternate;
+}
+@keyframes gold {
+  to {
+    background-position: 100% 100%;
+  }
+}
+.flame {
+  position: absolute;
+  bottom: -12px;
+  animation: flame 0.5s steps(2) infinite alternate;
+}
+@keyframes flame {
+  to {
+    transform: translateY(-2px) scaleY(1.15);
+  }
+}
+.ember {
+  position: absolute;
+  bottom: 20px;
+  width: 3px;
+  height: 3px;
+  background: #ffb13d;
+  opacity: 0;
+  animation: ember 2.4s linear infinite;
+}
+@keyframes ember {
+  20% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(10px, -140px);
+  }
+}
+.spark {
+  position: absolute;
+  z-index: 3;
+  opacity: 0;
+  animation: spark 2.4s ease-in-out infinite;
+}
+@keyframes spark {
+  50% {
+    opacity: 1;
+    transform: scale(1.2);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .holo,
+  .foil,
+  .gold,
+  .flame,
+  .ember,
+  .spark,
+  .sheen::after {
+    animation: none;
+  }
+  .pxcard__inner,
+  .pxcard__tilt {
+    transition: none;
+  }
+}

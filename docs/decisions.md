@@ -2,6 +2,19 @@
 
 Décisions prises en cours de développement, en complément de la spec (`spec.md`). Les plus récentes en premier.
 
+## 2026-10-13 — Phase 4 : front de jeu
+
+- Composant carte porté fidèlement depuis le design `pixpedia-carte.html` (6 raretés, variante VIP, carte d'événement, verso), dans `apps/web/src/card/`. Taille de référence 240 × 336, les autres tailles sont obtenues par `transform: scale`.
+- Police pixel : **Silkscreen** (celle du design), à la place de Press Start 2P.
+- Finitions, absentes du design : le reflet `.foil` du design sur l'illustration, plus une étiquette HOLO ou FULL ART. À revoir si un design dédié arrive.
+- VIP et cartes d'événement : rendus prêts, aucune donnée ne les utilise encore.
+- Numéro de carte : rang dans la série par id IGDB croissant (`cards.number`), figé avec la série.
+- Plateforme affichée : la plateforme officielle d'id IGDB le plus petit (souvent la plateforme d'origine).
+- Le front appelle l'API via `/api` sur la même origine (proxy Vite en dev, Nginx en prod) : pas de CORS, le cookie de session suit.
+- Écrans : accueil (stock, compte à rebours, taux de drop publiés), ouverture (révélation carte par carte, « tout révéler », éclat à partir de Boss), classeur (filtres, tri, pagination), détail (carte en grand, résumé, plateformes, exemplaires, lien IGDB), connexion et inscription. Galerie `/galerie` en dev seulement.
+- Le recalcul d'une série brouillon met les cartes à jour sur place au lieu de les recréer : les id restent stables et une carte possédée n'est jamais supprimée (spec §3.4). Avant cette correction, la sync nocturne aurait échoué dès la première carte possédée.
+- Les résumés des jeux viennent d'IGDB, donc en anglais.
+
 ## 2026-10-13 — Phase 3 : comptes, ouverture de packs, collection
 
 - Connexion par **email + mot de passe seulement** (décision ouverte n°6). Discord ou Twitch plus tard.

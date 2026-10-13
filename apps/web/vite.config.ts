@@ -22,7 +22,20 @@ export default defineConfig({
           { src: 'icon.svg', sizes: 'any', type: 'image/svg+xml', purpose: 'maskable' },
         ],
       },
+      workbox: {
+        // Les réponses de l'API ne doivent jamais être servies depuis le cache.
+        navigateFallbackDenylist: [/^\/api\//],
+      },
     }),
   ],
-  server: { strictPort: true },
+  server: {
+    strictPort: true,
+    // Même origine que le front : le cookie de session suit sans CORS (comme derrière Nginx en prod).
+    proxy: {
+      '/api': {
+        target: process.env.API_PROXY_TARGET ?? 'http://localhost:3014',
+        rewrite: (path) => path.replace(/^\/api/, ''),
+      },
+    },
+  },
 });

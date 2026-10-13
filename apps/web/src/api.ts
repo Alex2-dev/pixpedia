@@ -1,0 +1,115 @@
+import type { CardView, Family, Finish, Rarity, SlotOdds } from '@pixpedia/shared';
+
+export class ApiError extends Error {
+  constructor(
+    readonly status: number,
+    readonly code: string,
+  ) {
+    super(code);
+    this.name = 'ApiError';
+  }
+}
+
+/** Messages affichés pour les codes d'erreur de l'API. */
+const MESSAGES: Record<string, string> = {
+  invalid_credentials: 'Email ou mot de passe incorrect.',
+  username_taken: 'Ce pseudo est déjà pris.',
+  account_exists: 'Un compte existe déjà avec cet email.',
+  invalid_input: 'Certains champs ne sont pas valides.',
+  no_packs_available: 'Plus de pack disponible pour le moment.',
+  not_enough_shards: 'Pas assez d’éclats.',
+  unauthenticated: 'Connecte-toi pour continuer.',
+  rate_limited: 'Trop de tentatives, réessaie dans un moment.',
+  network: 'Le serveur ne répond pas. Vérifie ta connexion.',
+};
+
+export function errorMessage(err: unknown): string {
+  const code = err instanceof ApiError ? err.code : 'network';
+  return MESSAGES[code] ?? 'Une erreur est survenue.';
+}
+
+/** Appelle l'API via le proxy `/api` (même origine : le cookie de session suit). */
+export async function api<T>(
+  path: string,
+  init: { method?: string; body?: unknown } = {},
+): Promise<T> {
+  let res: Response;
+  try {
+    res = await fetch(`/api${path}`, {
+      method: init.method ?? 'GET',
+      credentials: 'same-origin',
+      headers: init.body === undefined ? undefined : { 'content-type': 'application/json' },
+      body: init.body === undefined ? undefined : JSON.stringify(init.body),
+    });
+  } catch {
+    throw new ApiError(0, 'network');
+  }
+  if (res.status === 204) return undefined as T;
+  const json = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    throw new ApiError(res.status, res.status === 429 ? 'rate_limited' : (json.error ?? 'unknown'));
+  }
+  return json as T;
+}
+
+export interface Me {
+  id: number;
+  username: string;
+  countryCode: string;
+  emailVerified: boolean;
+  packsAvailable: number;
+  packsMax: number;
+  nextPackAt: string | null;
+  pityCounter: number;
+  shards: number;
+  coins: number;
+}
+
+export interface PackType {
+  id: number;
+  code: string;
+  name: string;
+  cost: number;
+  odds: SlotOdds[];
+}
+
+export type DrawnCard = CardView & { finish: Finish; isNew: boolean };
+
+export interface OpenResult {
+  openingId: number;
+  cards: DrawnCard[];
+  replayed: boolean;
+  packsAvailable: number;
+  nextPackAt: string | null;
+  pityCounter: number;
+}
+
+export type OwnedCard = CardView & {
+  finish: string;
+  isBound: boolean;
+  quantity: number;
+  isFavorite: boolean;
+  firstObtainedAt: string;
+};
+
+export interface CollectionPage {
+  page: number;
+  pageSize: number;
+  total: number;
+  cards: OwnedCard[];
+}
+
+export interface CollectionFilters {
+  rarity?: Rarity;
+  family?: Family;
+  search?: string;
+  sort: 'recent' | 'rarity' | 'name' | 'year';
+}
+
+export type CardDetail = CardView & {
+  summary: string | null;
+  developer: string | null;
+  platforms: string[];
+  igdbUrl: string;
+  owned: { finish: string; isBound: boolean; quantity: number; firstObtainedAt: string }[];
+};

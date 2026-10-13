@@ -3,12 +3,12 @@
 Jeu web de cartes à collectionner où **chaque carte est un vrai jeu vidéo** (données IGDB).
 Studio Alex². Spécification complète : [docs/spec.md](docs/spec.md), décisions prises : [docs/decisions.md](docs/decisions.md).
 
-État actuel : phases 0 à 3 de la roadmap (socle, catalogue IGDB, calibrage et tirage, comptes et ouverture de packs). Pas encore de front de jeu.
+État actuel : phases 0 à 4 de la roadmap (socle, catalogue IGDB, calibrage et tirage, comptes et ouverture de packs, front de jeu).
 
 ## Structure
 
 ```
-apps/web         React + TypeScript + Vite (PWA) — page « bientôt »
+apps/web         React + TypeScript + Vite (PWA) — le jeu (packs, classeur, détail des cartes)
 apps/api         Fastify — comptes, packs, collection, recherche
 apps/worker      CLI d'import / sync IGDB (+ planificateur quotidien)
 packages/shared  Règles du jeu : raretés, prestige, stats, familles, filtres, schémas zod
