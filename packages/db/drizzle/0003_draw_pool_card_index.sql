@@ -1,0 +1,1 @@
+CREATE INDEX "draw_pool_card_idx" ON "draw_pool" USING btree ("card_id");

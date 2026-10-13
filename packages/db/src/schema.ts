@@ -16,7 +16,7 @@ import {
   timestamp,
   unique,
 } from 'drizzle-orm/pg-core';
-import type { RarityParams } from '@pixpedia/shared';
+import type { RarityParams, SlotOdds } from '@pixpedia/shared';
 
 const timestamptz = (name: string) => timestamp(name, { withTimezone: true });
 
@@ -198,6 +198,55 @@ export const rarityOverrides = pgTable(
     reason: text('reason').notNull(),
   },
   (t) => [check('rarity_overrides_rarity_check', rarityCheck(t.minRarity))],
+);
+
+/* ---------- Packs et tirage (spec §5.4, §8) ---------- */
+
+export const packTypes = pgTable('pack_types', {
+  id: serial('id').primaryKey(),
+  /** standard, n64, rpg, 1990s… */
+  code: text('code').notNull().unique(),
+  name: text('name').notNull(),
+  /** Filtre sur le pool de tirage, `{}` pour le pack standard (packs thématiques en phase 5). */
+  filter: jsonb('filter').notNull().default({}),
+  /** Coût en éclats, 0 = pack rechargeable gratuit. */
+  cost: integer('cost').notNull().default(0),
+  /** Probabilités par emplacement : modifiables sans toucher au code, publiées dans le jeu. */
+  odds: jsonb('odds').$type<SlotOdds[]>().notNull(),
+  isActive: boolean('is_active').notNull().default(true),
+});
+
+/** Index dense par rareté : un tirage = une lecture par clé primaire (spec §8.1). Reconstruit après chaque sync. */
+export const drawPool = pgTable(
+  'draw_pool',
+  {
+    packTypeId: integer('pack_type_id')
+      .notNull()
+      .references(() => packTypes.id),
+    rarity: text('rarity').notNull(),
+    /** 1..n, sans trou */
+    idx: integer('idx').notNull(),
+    cardId: integer('card_id')
+      .notNull()
+      .references(() => cards.id),
+  },
+  (t) => [
+    primaryKey({ columns: [t.packTypeId, t.rarity, t.idx] }),
+    // Sans cet index, recalculer une série vérifie la clé étrangère en parcourant tout le pool.
+    index('draw_pool_card_idx').on(t.cardId),
+  ],
+);
+
+export const drawPoolCounts = pgTable(
+  'draw_pool_counts',
+  {
+    packTypeId: integer('pack_type_id')
+      .notNull()
+      .references(() => packTypes.id),
+    rarity: text('rarity').notNull(),
+    n: integer('n').notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.packTypeId, t.rarity] })],
 );
 
 /* ---------- Suivi des imports ---------- */

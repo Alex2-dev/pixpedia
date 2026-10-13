@@ -7,3 +7,4 @@ export * from './rarity';
 export * from './catalog';
 export * from './schemas';
 export * from './platforms';
+export * from './packs';

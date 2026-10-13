@@ -1,11 +1,13 @@
 import { RARITIES, RARITY_KEYS, type Rarity } from '@pixpedia/shared';
 import type { IgdbStats } from './igdb/client';
+import type { PoolSummary } from './pool';
 
 export interface SeriesSummary {
   code: string;
   cards: number;
   catalogueMean: number;
   distribution: Record<Rarity, number>;
+  pools: PoolSummary[];
 }
 
 export interface RunReport {
@@ -115,6 +117,10 @@ export function formatReport(r: RunReport): string {
         .reverse()
         .map((k) => `      ${RARITIES[k].label.padEnd(14)} ${fr(r.series!.distribution[k])}`),
     );
+    for (const pool of r.series.pools) {
+      const total = Object.values(pool.counts).reduce((a, b) => a + b, 0);
+      lines.push(`  Pool de tirage « ${pool.packType} »  ${fr(total)} cartes tirables`);
+    }
   }
   return lines.join('\n');
 }

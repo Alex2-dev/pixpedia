@@ -24,6 +24,7 @@ Spec : `docs/spec.md` (v1.5). **Les règles ci-dessous priment sur la spec.** D�
 - **Familles** (depuis les genres IGDB) : Action, Stratégie, Vitesse, Aventure, RPG.
   Cycle Action > Stratégie > Vitesse > Aventure > RPG > Action, +20 % de dégâts.
 - Le **système de combat n'est pas tranché** : ne pas le coder. Champ `cards.combat` (jsonb) réservé.
+- Tirage : taux par emplacement dans `pack_types.odds`, `draw_pool` reconstruit dans la transaction du calcul de série. Hasard via `crypto.randomInt` uniquement.
 - Exclusion du contenu sexuel (spec §4) : `eligible` / `quarantine` / `excluded`, en cas de doute quarantaine.
 
 ## Argent — non négociable

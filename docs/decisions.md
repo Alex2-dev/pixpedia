@@ -2,6 +2,17 @@
 
 Décisions prises en cours de développement, en complément de la spec (`spec.md`). Les plus récentes en premier.
 
+## 2026-10-13 — Phase 2 : tirage
+
+- Taux de drop du pack standard repris de la spec §5.4 avec les raretés Pixpedia (Commun→Starter, Peu commun→Bonus, Rare→Combo, Épique→Boss, Ultra rare→Boss final, Légendaire→Hall of Fame) :
+  emplacements 1-3 Starter 75 / Bonus 22 / Combo 3 ; emplacement 4 Bonus 70 / Combo 24 / Boss 5 / Boss final 1 ; emplacement 5 Combo 70 / Boss 22 / Boss final 7 / Hall of Fame 1.
+- Garantie : après 10 packs sans Boss ou mieux, l'emplacement 5 est Boss au minimum.
+- Taux stockés dans `pack_types.odds` (jsonb validé par zod), valeurs de départ dans `DEFAULT_PACK_ODDS`. Tirage en dix-millièmes, avec un entier aléatoire fourni par l'appelant (`crypto.randomInt` côté serveur).
+- `draw_pool` reconstruit **dans la même transaction** que le recalcul de la série : les joueurs ne voient jamais un pool vide ni des cartes supprimées. Seuls les jeux `eligible` et `is_drawable` de la série la plus récente y entrent.
+- Index sur `draw_pool.card_id` : sans lui, recalculer une série prenait plusieurs minutes (vérification de clé étrangère sur tout le pool).
+- Seul le pack standard existe. Les packs filtrés (thématiques) sont refusés jusqu'à la phase 5.
+- À surveiller en bêta : avec 1 pack toutes les 5 minutes, un joueur très actif peut ouvrir jusqu'à 288 packs par jour, soit environ 3 Hall of Fame par jour.
+
 ## 2026-10-13 — Premier import complet
 
 - 277 119 jeux reçus en 9 min 44 s, 1 113 requêtes IGDB, aucun 429.
