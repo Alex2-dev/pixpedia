@@ -98,3 +98,32 @@ export const collectionQuerySchema = z.object({
   sort: z.enum(['recent', 'rarity', 'name', 'year']).default('recent'),
 });
 export type CollectionQuery = z.infer<typeof collectionQuerySchema>;
+
+/* ---------- Vue d'une carte (tous les écrans du jeu) ---------- */
+
+export interface CardView {
+  cardId: number;
+  gameId: number;
+  /** Numéro affiché, ex. « #0655 ». */
+  number: string;
+  seriesCode: string;
+  name: string;
+  year: number | null;
+  /** Plateforme principale (abréviation), `null` si inconnue. */
+  platform: string | null;
+  rarity: z.infer<typeof raritySchema>;
+  rarityLabel: string;
+  cost: number;
+  family: z.infer<typeof familySchema>;
+  familyLabel: string;
+  atk: number;
+  def: number;
+  hp: number;
+  spd: number;
+  coverUrl: string | null;
+}
+
+/** Numéro de collection affiché sur la carte. */
+export function cardNumber(cardId: number): string {
+  return `#${String(cardId).padStart(4, '0')}`;
+}

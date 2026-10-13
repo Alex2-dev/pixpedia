@@ -1,21 +1,14 @@
 import { randomInt } from 'node:crypto';
 import { and, asc, desc, eq, ilike, sql, type SQL } from 'drizzle-orm';
 import type { FastifyPluginAsync } from 'fastify';
+import { z } from 'zod';
 import { cards, games, packTypes, userCards, users, type Db } from '@pixpedia/db';
-import {
-  FAMILY_LABELS,
-  RARITIES,
-  collectionQuerySchema,
-  computePackStock,
-  igdbCoverUrl,
-  openPackSchema,
-  type Family,
-  type Rarity,
-} from '@pixpedia/shared';
+import { collectionQuerySchema, computePackStock, openPackSchema } from '@pixpedia/shared';
 import { requireUser } from '../auth/plugin';
+import { loadCardViews } from '../cards';
 import { ApiError, sendInvalid } from '../errors';
 import { escapeLike } from '../games';
-import { describeCards, openPack, type PackConfig } from '../services/open-pack';
+import { openPack, type PackConfig } from '../services/open-pack';
 
 export interface PlayerRouteOptions {
   db: Db;
@@ -24,14 +17,7 @@ export interface PlayerRouteOptions {
   now?: () => Date;
 }
 
-const cardView = (rarity: Rarity, family: Family) => ({
-  rarity,
-  rarityLabel: RARITIES[rarity].label,
-  rarityColor: RARITIES[rarity].color,
-  cost: RARITIES[rarity].cost,
-  family,
-  familyLabel: FAMILY_LABELS[family],
-});
+const cardIdParams = z.object({ id: z.coerce.number().int().positive() });
 
 export const playerRoutes: FastifyPluginAsync<PlayerRouteOptions> = async (app, opts) => {
   const { db, pack } = opts;
@@ -89,26 +75,17 @@ export const playerRoutes: FastifyPluginAsync<PlayerRouteOptions> = async (app, 
           parsed.data.packTypeId,
           parsed.data.idempotencyKey,
         );
-        const details = await describeCards(
+        const views = await loadCardViews(
           db,
           result.cards.map((c) => c.cardId),
         );
         return {
           ...result,
-          cards: result.cards.map((c) => {
-            const d = details.get(c.cardId);
-            return {
-              ...c,
-              ...cardView(c.rarity, d.family as Family),
-              name: d.name,
-              coverUrl: d.coverImageId ? igdbCoverUrl(d.coverImageId) : null,
-              releaseYear: d.releaseDate ? d.releaseDate.getUTCFullYear() : null,
-              atk: d.atk,
-              def: d.def,
-              hp: d.hp,
-              spd: d.spd,
-            };
-          }),
+          cards: result.cards.map((c) => ({
+            ...views.get(c.cardId)!,
+            finish: c.finish,
+            isNew: c.isNew,
+          })),
         };
       } catch (err) {
         if (err instanceof ApiError) return reply.code(err.status).send({ error: err.code });
@@ -139,17 +116,7 @@ export const playerRoutes: FastifyPluginAsync<PlayerRouteOptions> = async (app, 
     const [rows, [total]] = await Promise.all([
       db
         .select({
-          cardId: cards.id,
-          gameId: games.id,
-          name: games.name,
-          coverImageId: games.coverImageId,
-          releaseDate: games.firstReleaseDate,
-          rarity: cards.rarity,
-          family: cards.family,
-          atk: cards.atk,
-          def: cards.def,
-          hp: cards.hp,
-          spd: cards.spd,
+          cardId: userCards.cardId,
           finish: userCards.finish,
           isBound: userCards.isBound,
           quantity: userCards.quantity,
@@ -170,17 +137,63 @@ export const playerRoutes: FastifyPluginAsync<PlayerRouteOptions> = async (app, 
         .innerJoin(games, eq(games.id, cards.gameId))
         .where(where),
     ]);
+    const views = await loadCardViews(
+      db,
+      rows.map((r) => r.cardId),
+    );
 
     return {
       page: q.page,
       pageSize: q.pageSize,
       total: total!.n,
-      cards: rows.map(({ coverImageId, releaseDate, rarity, family, ...r }) => ({
-        ...r,
-        ...cardView(rarity as Rarity, family as Family),
-        coverUrl: coverImageId ? igdbCoverUrl(coverImageId) : null,
-        releaseYear: releaseDate ? releaseDate.getUTCFullYear() : null,
-      })),
+      cards: rows.map((r) => ({ ...views.get(r.cardId)!, ...r })),
+    };
+  });
+
+  // Détail d'une carte : public si le jeu est éligible, sinon réservé à ceux qui la possèdent.
+  app.get('/cards/:id', async (req, reply) => {
+    const parsed = cardIdParams.safeParse(req.params);
+    if (!parsed.success) return sendInvalid(reply, parsed.error);
+    const cardId = parsed.data.id;
+
+    const [view] = (await loadCardViews(db, [cardId])).values();
+    if (!view) return reply.code(404).send({ error: 'card_not_found' });
+    const [game] = await db
+      .select({
+        slug: games.slug,
+        summary: games.summary,
+        developer: games.developerName,
+        status: games.status,
+      })
+      .from(games)
+      .where(eq(games.id, view.gameId));
+    const owned = req.user
+      ? await db
+          .select({
+            finish: userCards.finish,
+            isBound: userCards.isBound,
+            quantity: userCards.quantity,
+            firstObtainedAt: userCards.firstObtainedAt,
+          })
+          .from(userCards)
+          .where(and(eq(userCards.userId, req.user.id), eq(userCards.cardId, cardId)))
+      : [];
+    if (game!.status !== 'eligible' && owned.length === 0) {
+      return reply.code(404).send({ error: 'card_not_found' });
+    }
+    const { rows: platforms } = await db.execute<{ name: string }>(sql`
+      select p.name from game_platforms gp join platforms p on p.id = gp.platform_id
+      where gp.game_id = ${view.gameId} and p.is_official order by p.id
+    `);
+
+    return {
+      ...view,
+      summary: game!.summary,
+      developer: game!.developer,
+      platforms: platforms.map((p) => p.name),
+      // Attribution et lien vers la fiche IGDB (spec §20.2).
+      igdbUrl: `https://www.igdb.com/games/${game!.slug}`,
+      owned,
     };
   });
 };

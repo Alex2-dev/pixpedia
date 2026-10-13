@@ -4,7 +4,6 @@ import {
   currencyLedger,
   drawPool,
   drawPoolCounts,
-  games,
   packOpenings,
   packTypes,
   userCards,
@@ -228,25 +227,4 @@ export async function openPack(
       shards,
     };
   });
-}
-
-/** Infos d'affichage des cartes tirées (nom, jaquette, stats). */
-export async function describeCards(db: Db, cardIds: number[]) {
-  if (!cardIds.length) return new Map();
-  const rows = await db
-    .select({
-      cardId: cards.id,
-      name: games.name,
-      coverImageId: games.coverImageId,
-      releaseDate: games.firstReleaseDate,
-      family: cards.family,
-      atk: cards.atk,
-      def: cards.def,
-      hp: cards.hp,
-      spd: cards.spd,
-    })
-    .from(cards)
-    .innerJoin(games, eq(games.id, cards.gameId))
-    .where(inArray(cards.id, cardIds));
-  return new Map(rows.map((r) => [r.cardId, r]));
 }

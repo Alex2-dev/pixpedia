@@ -344,6 +344,42 @@ describe.skipIf(!url)('API joueur (intégration, TEST_DATABASE_URL)', () => {
     });
   });
 
+  describe('détail d’une carte', () => {
+    it('renvoie la vue complète, avec l’attribution IGDB', async () => {
+      const res = await app.inject({ url: '/cards/1' });
+      expect(res.statusCode).toBe(200);
+      expect(res.json()).toMatchObject({
+        cardId: 1,
+        number: '#0001',
+        seriesCode: 'T0',
+        rarity: 'starter',
+        rarityLabel: 'Starter',
+        cost: 1,
+        platform: null,
+        igdbUrl: 'https://www.igdb.com/games/jeu-1',
+        owned: [],
+      });
+    });
+
+    it('indique les exemplaires possédés par le joueur connecté', async () => {
+      const cookie = await register();
+      const first = (await open(cookie)).json().cards[0];
+      expect(first).toMatchObject({ number: expect.stringMatching(/^#\d{4}$/), seriesCode: 'T0' });
+      const res = (await app.inject({ url: `/cards/${first.cardId}`, headers: { cookie } })).json();
+      expect(res.owned).toEqual([
+        expect.objectContaining({ finish: first.finish, isBound: false, quantity: 1 }),
+      ]);
+    });
+
+    it('cache un jeu sorti du catalogue à ceux qui ne le possèdent pas', async () => {
+      await db.execute(sql`update games set status = 'quarantine' where id = 2`);
+      expect((await app.inject({ url: '/cards/2' })).statusCode).toBe(404);
+      await db.execute(sql`update games set status = 'eligible' where id = 2`);
+      expect((await app.inject({ url: '/cards/abc' })).statusCode).toBe(400);
+      expect((await app.inject({ url: '/cards/99999' })).statusCode).toBe(404);
+    });
+  });
+
   describe('collection', () => {
     it('liste, filtre et pagine les cartes du joueur seulement', async () => {
       const cookie = await register();
