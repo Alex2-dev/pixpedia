@@ -20,6 +20,7 @@ Référence exacte : `docs/design/pixpedia-animations.html` (timelines et keyfra
   - « Rejouer » rouvre le même nombre de packs si le stock le permet, sinon retour à l'accueil.
   - **Plein écran, sans cadre** (demande de l'équipe après essai sur ordinateur) : fonds, chaleur, flashs, confettis et bandeau couvrent toute la fenêtre ; la carte, les anneaux, les particules et les titres gardent les positions de la maquette (390 × 844) dans un cœur centré, mis à l'échelle de l'écran (`.dp-core`). L'ouverture laisse aussi déborder ses rayons et halos.
   - Récap : vraies cartes réduites à 104 px au lieu de la mini-carte simplifiée.
+  - Drop Boss : le retournement tourne dans l'autre sens que la maquette (le dos part vers −90°, la face arrive depuis +90°), à la demande de l'équipe.
   - Bouton ✕ ajouté sur l'écran du pack fermé, pour revenir sans ouvrir.
 - **Fiche carte** : « ▶ Voir l'animation de drop » pour Boss et plus, visible même sans posséder la carte ; « Tirée le JJ/MM/AAAA » si possédée (pour toutes les raretés).
 - **Annonce Hall of Fame** : événement `card_drop_hof` (table `drop_events`) écrit à l'ouverture, lu par `GET /drops/hof` ; composant `HofBanner` prêt. Le temps réel (SSE ou WebSocket) reste à faire.
