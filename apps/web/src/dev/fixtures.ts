@@ -80,3 +80,52 @@ export const DEMO_BY_RARITY: Record<Rarity, CardData> = {
     isNew: true,
   }),
 };
+
+const NAMES = [
+  'Shadow Drift',
+  'Iron Pinball',
+  'Castle Hunter',
+  'Lunar Forge',
+  'Pixel Byte',
+  'Neon Rally',
+  'Crystal Quest',
+  'Sky Tactics',
+  'Rune Racer',
+  'Moss Kingdom',
+  'Void Arena',
+  'Ember Saga',
+];
+
+/** Pack de démo : 5 cartes des raretés données, dans le désordre (la plus rare sortira en dernier). */
+function demoPack(pack: number, rarities: Rarity[]) {
+  return rarities.map((rarity, i) => {
+    const base = DEMO_BY_RARITY[rarity];
+    const id = pack * 10 + i;
+    return {
+      pack,
+      rarity,
+      isNew: (id * 7) % 3 === 0,
+      card: {
+        ...base,
+        id,
+        number: `#${String(2000 + id).padStart(4, '0')}`,
+        name: NAMES[id % NAMES.length]!,
+        isNew: false,
+      },
+    };
+  });
+}
+
+/** 1 pack : Starter, Bonus, Combo, Boss final, Boss. */
+export const DEMO_ONE_PACK = demoPack(1, ['final', 'starter', 'boss', 'bonus', 'combo']);
+
+/** 7 packs (35 cartes), dont un Boss, un Boss final et un Hall of Fame. */
+export const DEMO_SEVEN_PACKS = [
+  demoPack(1, ['starter', 'starter', 'bonus', 'starter', 'combo']),
+  demoPack(2, ['boss', 'starter', 'bonus', 'starter', 'bonus']),
+  demoPack(3, ['starter', 'starter', 'starter', 'bonus', 'combo']),
+  demoPack(4, ['starter', 'final', 'bonus', 'starter', 'combo']),
+  demoPack(5, ['starter', 'starter', 'starter', 'bonus', 'bonus']),
+  demoPack(6, ['bonus', 'starter', 'hof', 'starter', 'combo']),
+  demoPack(7, ['starter', 'bonus', 'starter', 'starter', 'combo']),
+].flat();

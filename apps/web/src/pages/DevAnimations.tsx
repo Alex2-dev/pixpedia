@@ -1,7 +1,9 @@
 import { useState } from 'react';
 import { DEFAULT_PACK_ODDS, formatChance, perCardChance, type Rarity } from '@pixpedia/shared';
 import { DropOverlay } from '../components/drop/DropOverlay';
-import { DEMO_BY_RARITY } from '../dev/fixtures';
+import { HofBanner } from '../components/HofBanner';
+import { DEMO_BY_RARITY, DEMO_ONE_PACK, DEMO_SEVEN_PACKS } from '../dev/fixtures';
+import { PackOpening } from '../features/pack-opening/PackOpening';
 
 const DROPS: { rarity: Rarity; label: string; color: string }[] = [
   { rarity: 'boss', label: 'Boss · ~1,4 s', color: '#A05CFF' },
@@ -15,6 +17,9 @@ export function DevAnimations() {
   const [firstHof, setFirstHof] = useState(false);
   const [drop, setDrop] = useState<Rarity | null>(null);
   const [cues, setCues] = useState<string[]>([]);
+  const [opening, setOpening] = useState<{ count: number; run: number } | null>(null);
+  const [banner, setBanner] = useState(false);
+  const chance = (r: Rarity) => formatChance(perCardChance(r, DEFAULT_PACK_ODDS));
 
   return (
     <section className="dev-anim">
@@ -41,6 +46,28 @@ export function DevAnimations() {
         </label>
       </div>
 
+      <h2>Ouverture de packs</h2>
+      <div className="dev-buttons">
+        {[1, 7].map((count) => (
+          <button
+            key={count}
+            type="button"
+            className="btn"
+            data-testid={`open-${count}`}
+            onClick={() => setOpening({ count, run: Date.now() })}
+          >
+            ▶ {count} pack{count > 1 ? 's' : ''}
+          </button>
+        ))}
+      </div>
+
+      <h2>Annonce Hall of Fame</h2>
+      <div className="dev-buttons">
+        <button type="button" className="btn btn-ghost" onClick={() => setBanner(true)}>
+          Afficher le bandeau
+        </button>
+      </div>
+
       <h2>Drops</h2>
       <div className="dev-buttons">
         {DROPS.map((d) => (
@@ -65,10 +92,34 @@ export function DevAnimations() {
         </p>
       )}
 
+      {opening && (
+        <PackOpening
+          key={opening.run}
+          packCount={opening.count}
+          packName="Pack des légendes"
+          cards={opening.count === 1 ? DEMO_ONE_PACK : DEMO_SEVEN_PACKS}
+          reduced={reduced}
+          hofSeen={!firstHof}
+          username="thedead"
+          chance={chance}
+          replayLabel="Rejouer"
+          onAddToCodex={() => setOpening(null)}
+          onReplay={() => setOpening({ ...opening, run: Date.now() })}
+          onClose={() => setOpening(null)}
+          onCue={(c) => setCues((all) => [...all, c])}
+        />
+      )}
+      {banner && (
+        <HofBanner
+          drop={{ id: 1, username: 'thedead', cardId: 1, name: 'Starfall Odyssey', createdAt: '' }}
+          onDismiss={() => setBanner(false)}
+        />
+      )}
+
       {drop && (
         <DropOverlay
           card={DEMO_BY_RARITY[drop]}
-          chance={formatChance(perCardChance(drop, DEFAULT_PACK_ODDS))}
+          chance={chance(drop)}
           mode="catalogue"
           reduced={reduced}
           firstHof={firstHof}
