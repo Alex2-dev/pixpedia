@@ -34,7 +34,17 @@ export interface GameRecord {
   platformIds: number[];
   genreIds: number[];
   themeIds: number[];
+  companies: { id: number; name: string; slug: string; role: 'developer' | 'publisher' }[];
+  franchises: { id: number; name: string; slug: string }[];
 }
+
+const slugify = (s: string) =>
+  s
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '');
 
 const fromUnix = (s: number | undefined) => (s === undefined ? null : new Date(s * 1000));
 
@@ -79,6 +89,21 @@ export function normalizeGame(
   );
 
   const developer = g.involved_companies?.find((c) => c.developer && c.company?.name);
+  const companies = new Map<string, GameRecord['companies'][number]>();
+  for (const ic of g.involved_companies ?? []) {
+    if (!ic.company?.name) continue;
+    const base = {
+      id: ic.company.id,
+      name: ic.company.name,
+      slug: ic.company.slug ?? slugify(ic.company.name),
+    };
+    if (ic.developer) companies.set(`${base.id}-developer`, { ...base, role: 'developer' });
+    if (ic.publisher) companies.set(`${base.id}-publisher`, { ...base, role: 'publisher' });
+  }
+  const franchises = new Map<number, GameRecord['franchises'][number]>();
+  for (const f of [g.franchise, ...(g.franchises ?? [])]) {
+    if (f?.name) franchises.set(f.id, { id: f.id, name: f.name, slug: f.slug ?? slugify(f.name) });
+  }
 
   return {
     row: {
@@ -105,5 +130,7 @@ export function normalizeGame(
     platformIds,
     genreIds,
     themeIds,
+    companies: [...companies.values()],
+    franchises: [...franchises.values()],
   };
 }

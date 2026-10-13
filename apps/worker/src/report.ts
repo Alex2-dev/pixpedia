@@ -1,6 +1,7 @@
 import { RARITIES, RARITY_KEYS, type Rarity } from '@pixpedia/shared';
 import type { IgdbStats } from './igdb/client';
 import type { PoolSummary } from './pool';
+import type { SetsSummary } from './sets';
 
 export interface SeriesSummary {
   code: string;
@@ -8,6 +9,7 @@ export interface SeriesSummary {
   catalogueMean: number;
   distribution: Record<Rarity, number>;
   pools: PoolSummary[];
+  sets: SetsSummary;
 }
 
 export interface RunReport {
@@ -116,6 +118,11 @@ export function formatReport(r: RunReport): string {
       ...RARITY_KEYS.slice()
         .reverse()
         .map((k) => `      ${RARITIES[k].label.padEnd(14)} ${fr(r.series!.distribution[k])}`),
+    );
+    lines.push(
+      `  Sets                 ${Object.entries(r.series.sets)
+        .map(([type, n]) => `${type} ${fr(n)}`)
+        .join(', ')}`,
     );
     for (const pool of r.series.pools) {
       const total = Object.values(pool.counts).reduce((a, b) => a + b, 0);

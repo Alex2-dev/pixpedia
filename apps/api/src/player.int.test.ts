@@ -381,6 +381,157 @@ describe.skipIf(!url)('API joueur (intégration, TEST_DATABASE_URL)', () => {
     });
   });
 
+  describe('éclats', () => {
+    it('recycle les doublons en éclats, en gardant un exemplaire', async () => {
+      const cookie = await register();
+      await open(cookie);
+      counter = 0;
+      await open(cookie); // mêmes cartes : 5 doublons (3 Starter, 1 Bonus, 1 Combo)
+
+      const preview = (
+        await app.inject({ url: '/collection/duplicates', headers: { cookie } })
+      ).json();
+      expect(preview).toEqual({ copies: 5, shards: 3 * 1 + 3 + 10 });
+
+      const res = await app.inject({
+        method: 'POST',
+        url: '/cards/recycle-duplicates',
+        headers: { cookie },
+      });
+      expect(res.json()).toEqual({ copies: 5, shardsGained: 16, shards: 16 });
+      expect((await me(cookie)).shards).toBe(16);
+      const q = await db.execute(
+        sql`select sum(quantity)::int n, count(*)::int rows from user_cards`,
+      );
+      expect(q.rows[0]).toEqual({ n: 5, rows: 5 });
+      const ledger = await db.execute(
+        sql`select sum(delta)::int s from currency_ledger where reason = 'recycle'`,
+      );
+      expect(ledger.rows[0]).toEqual({ s: 16 });
+    });
+
+    it('refuse de recycler le dernier exemplaire ou une carte liée', async () => {
+      const cookie = await register();
+      const card = (await open(cookie)).json().cards[0];
+      const last = await app.inject({
+        method: 'POST',
+        url: '/cards/recycle',
+        headers: { cookie },
+        payload: { cardId: card.cardId, finish: card.finish, quantity: 1 },
+      });
+      expect(last.json()).toEqual({ error: 'not_enough_duplicates' });
+
+      await db.execute(sql`insert into user_cards (user_id, card_id, finish, is_bound, quantity)
+        values (1, ${card.cardId}, 'normal', true, 5)`);
+      const bound = await app.inject({
+        method: 'POST',
+        url: '/cards/recycle',
+        headers: { cookie },
+        payload: { cardId: card.cardId, finish: 'normal', quantity: 1 },
+      });
+      expect(bound.statusCode).toBe(409);
+      expect(
+        (await app.inject({ url: '/collection/duplicates', headers: { cookie } })).json(),
+      ).toEqual({
+        copies: 0,
+        shards: 0,
+      });
+    });
+
+    it('achète un pack standard en éclats quand le stock est vide (50 éclats)', async () => {
+      const cookie = await register();
+      for (let i = 0; i < 10; i++) await open(cookie);
+      const pay = (shardsWanted: boolean) =>
+        app.inject({
+          method: 'POST',
+          url: '/packs/open',
+          headers: { cookie },
+          payload: { packTypeId, idempotencyKey: randomUUID(), useShards: shardsWanted },
+        });
+      expect((await pay(true)).json()).toEqual({ error: 'not_enough_shards' });
+
+      await db.execute(sql`update users set shards = 60`);
+      const res = await pay(true);
+      expect(res.statusCode).toBe(200);
+      expect(res.json()).toMatchObject({ packsAvailable: 0, shards: 10 });
+      const ledger = await db.execute(sql`select delta, reason from currency_ledger`);
+      expect(ledger.rows).toEqual([{ delta: -50, reason: 'pack_purchase' }]);
+      const bound = await db.execute(sql`select count(*)::int n from user_cards where is_bound`);
+      expect(bound.rows[0]).toEqual({ n: 0 });
+    });
+  });
+
+  describe('sets et packs thématiques', () => {
+    beforeEach(async () => {
+      await db.execute(sql`truncate set_cards, sets restart identity cascade`);
+      await db.execute(sql`delete from pack_types where code = 'theme-bonus'`);
+      // Set « Bonus » : les 6 cartes Bonus du pool de test (ids 13 à 18).
+      await db.execute(sql`
+        insert into sets (series_id, type, key, name, total) values (1, 'genre', 'bonus', 'Genre Bonus', 6);
+        insert into set_cards select 1, id from cards where rarity = 'bonus';
+      `);
+    });
+
+    it('liste les sets avec la progression du joueur', async () => {
+      const cookie = await register();
+      await open(cookie); // 1 carte Bonus
+      const list = (await app.inject({ url: '/sets?type=genre', headers: { cookie } })).json();
+      expect(list.sets).toEqual([
+        { type: 'genre', key: 'bonus', name: 'Genre Bonus', total: 6, owned: 1 },
+      ]);
+
+      const summary = (await app.inject({ url: '/sets/summary', headers: { cookie } })).json();
+      expect(summary.types).toEqual([{ type: 'genre', sets: 1, started: 1, completed: 0 }]);
+
+      const anonymous = (await app.inject({ url: '/sets?type=genre' })).json();
+      expect(anonymous.sets[0].owned).toBe(0);
+    });
+
+    it('détaille un set avec les cartes possédées et manquantes', async () => {
+      const cookie = await register();
+      await open(cookie);
+      const detail = (await app.inject({ url: '/sets/genre/bonus', headers: { cookie } })).json();
+      expect(detail).toMatchObject({ name: 'Genre Bonus', total: 6, owned: 1, matching: 6 });
+      expect(detail.cards.filter((c: { owned: boolean }) => c.owned)).toHaveLength(1);
+
+      const missing = (
+        await app.inject({ url: '/sets/genre/bonus?missing=missing', headers: { cookie } })
+      ).json();
+      expect(missing.matching).toBe(5);
+      expect(missing.cards.every((c: { owned: boolean }) => !c.owned)).toBe(true);
+      expect((await app.inject({ url: '/sets/genre/inconnu' })).statusCode).toBe(404);
+      expect((await app.inject({ url: '/sets?type=pays' })).statusCode).toBe(400);
+    });
+
+    it('un pack thématique tire dans son set, en remontant de rareté si besoin', async () => {
+      const [themed] = (
+        await db.execute<{ id: number }>(sql`
+          insert into pack_types (code, name, filter, cost, odds)
+          values ('theme-bonus', 'Pack Bonus', '{"set":{"type":"genre","key":"bonus"}}', 100,
+                  ${JSON.stringify(DEFAULT_PACK_ODDS)}::jsonb)
+          returning id`)
+      ).rows;
+      await db.execute(sql`
+        insert into draw_pool (pack_type_id, rarity, idx, card_id)
+        select ${themed!.id}, 'bonus', row_number() over (order by id), id from cards where rarity = 'bonus'
+      `);
+      await db.execute(sql`insert into draw_pool_counts values (${themed!.id}, 'bonus', 6)`);
+      const cookie = await register();
+      await db.execute(sql`update users set shards = 150`);
+      const res = await app.inject({
+        method: 'POST',
+        url: '/packs/open',
+        headers: { cookie },
+        payload: { packTypeId: themed!.id, idempotencyKey: randomUUID() },
+      });
+      expect(res.statusCode).toBe(200);
+      const body = res.json();
+      // Starter et Combo tirés n'existent pas dans ce pool : on obtient des Bonus.
+      expect(body.cards.map((c: { rarity: string }) => c.rarity)).toEqual(Array(5).fill('bonus'));
+      expect(body).toMatchObject({ shards: 50, packsAvailable: 10 });
+    });
+  });
+
   describe('collection', () => {
     it('liste, filtre et pagine les cartes du joueur seulement', async () => {
       const cookie = await register();

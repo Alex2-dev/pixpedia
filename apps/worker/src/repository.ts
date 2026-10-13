@@ -1,5 +1,15 @@
 import { inArray, sql } from 'drizzle-orm';
-import { gameGenres, gamePlatforms, gameThemes, games, type Db } from '@pixpedia/db';
+import {
+  companies,
+  franchises,
+  gameCompanies,
+  gameFranchises,
+  gameGenres,
+  gamePlatforms,
+  gameThemes,
+  games,
+  type Db,
+} from '@pixpedia/db';
 import type { GameRecord } from './normalize';
 
 export interface UpsertResult {
@@ -49,6 +59,8 @@ export async function upsertGames(db: Db, records: GameRecord[]): Promise<Upsert
     await tx.delete(gamePlatforms).where(inArray(gamePlatforms.gameId, ids));
     await tx.delete(gameGenres).where(inArray(gameGenres.gameId, ids));
     await tx.delete(gameThemes).where(inArray(gameThemes.gameId, ids));
+    await tx.delete(gameCompanies).where(inArray(gameCompanies.gameId, ids));
+    await tx.delete(gameFranchises).where(inArray(gameFranchises.gameId, ids));
 
     const plat = records.flatMap((r) =>
       r.platformIds.map((platformId) => ({ gameId: r.row.id, platformId })),
@@ -62,6 +74,37 @@ export async function upsertGames(db: Db, records: GameRecord[]): Promise<Upsert
     if (plat.length) await tx.insert(gamePlatforms).values(plat).onConflictDoNothing();
     if (gen.length) await tx.insert(gameGenres).values(gen).onConflictDoNothing();
     if (thm.length) await tx.insert(gameThemes).values(thm).onConflictDoNothing();
+
+    // Sociétés et franchises arrivent avec les jeux : on les enregistre au passage.
+    const comps = new Map(records.flatMap((r) => r.companies.map((c) => [c.id, c] as const)));
+    if (comps.size) {
+      await tx
+        .insert(companies)
+        .values([...comps.values()].map(({ id, name, slug }) => ({ id, name, slug })))
+        .onConflictDoUpdate({
+          target: companies.id,
+          set: { name: sql`excluded.name`, slug: sql`excluded.slug` },
+        });
+    }
+    const gc = records.flatMap((r) =>
+      r.companies.map((c) => ({ gameId: r.row.id, companyId: c.id, role: c.role })),
+    );
+    if (gc.length) await tx.insert(gameCompanies).values(gc).onConflictDoNothing();
+
+    const fras = new Map(records.flatMap((r) => r.franchises.map((f) => [f.id, f] as const)));
+    if (fras.size) {
+      await tx
+        .insert(franchises)
+        .values([...fras.values()])
+        .onConflictDoUpdate({
+          target: franchises.id,
+          set: { name: sql`excluded.name`, slug: sql`excluded.slug` },
+        });
+    }
+    const gf = records.flatMap((r) =>
+      r.franchises.map((f) => ({ gameId: r.row.id, franchiseId: f.id })),
+    );
+    if (gf.length) await tx.insert(gameFranchises).values(gf).onConflictDoNothing();
 
     const added = rows.filter((r) => r.inserted).length;
     return { added, updated: rows.length - added };

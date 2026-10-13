@@ -11,6 +11,7 @@ import {
   type Rarity,
 } from '@pixpedia/shared';
 import { rebuildDrawPool, type PoolSummary } from './pool';
+import { rebuildSets, type SetsSummary } from './sets';
 import type { SeriesSummary } from './report';
 
 interface EligibleRow extends Record<string, unknown> {
@@ -86,6 +87,7 @@ export async function printSeries(
     .map((c, i) => ({ ...c, number: i + 1 }));
 
   let pools: PoolSummary[] = [];
+  let sets = {} as SetsSummary;
   await db.transaction(async (tx) => {
     const [s] = existing
       ? await tx
@@ -100,10 +102,13 @@ export async function printSeries(
     const seriesId = s!.id;
 
     // Série brouillon : les cartes sont mises à jour sur place (id stables, exemplaires des
-    // joueurs conservés). Le pool pointe sur ces cartes : on le vide puis on le reconstruit
-    // dans la même transaction.
+    // joueurs conservés). Pool et sets pointent sur ces cartes : on les vide puis on les
+    // reconstruit dans la même transaction.
     await tx.execute(
       sql`delete from draw_pool where card_id in (select id from cards where series_id = ${seriesId})`,
+    );
+    await tx.execute(
+      sql`delete from set_cards where set_id in (select id from sets where series_id = ${seriesId})`,
     );
     for (let i = 0; i < newCards.length; i += CHUNK) {
       await tx
@@ -142,6 +147,7 @@ export async function printSeries(
       `);
     }
 
+    sets = await rebuildSets(tx, seriesId);
     pools = await rebuildDrawPool(tx, seriesId);
   });
 
@@ -155,5 +161,6 @@ export async function printSeries(
     catalogueMean: catalogueMean(rated.map((g) => g.total_rating as number)),
     distribution,
     pools,
+    sets,
   };
 }

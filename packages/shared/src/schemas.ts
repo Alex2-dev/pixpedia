@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { FAMILY_KEYS, GAME_STATUSES, RARITY_KEYS } from './constants';
 import { FINISHES } from './player';
+import { SET_TYPE_KEYS } from './progression';
 
 export const raritySchema = z.enum(RARITY_KEYS);
 export const familySchema = z.enum(FAMILY_KEYS);
@@ -85,6 +86,29 @@ export const loginSchema = z.object({
 export const openPackSchema = z.object({
   packTypeId: z.number().int().positive(),
   idempotencyKey: z.uuid(),
+  /** Payer en éclats un pack standard quand le stock est vide. */
+  useShards: z.boolean().default(false),
+});
+
+export const recycleSchema = z.object({
+  cardId: z.number().int().positive(),
+  finish: z.string().min(1).max(40),
+  /** Exemplaires à recycler ; un exemplaire est toujours gardé. */
+  quantity: z.number().int().positive(),
+});
+
+export const setsQuerySchema = z.object({
+  type: z.enum(SET_TYPE_KEYS),
+  search: z.string().trim().min(1).max(100).optional(),
+  sort: z.enum(['progress', 'size', 'name']).default('progress'),
+  page: z.coerce.number().int().min(1).default(1),
+  pageSize: z.coerce.number().int().min(1).max(100).default(50),
+});
+
+export const setCardsQuerySchema = z.object({
+  page: z.coerce.number().int().min(1).default(1),
+  pageSize: z.coerce.number().int().min(1).max(100).default(60),
+  missing: z.enum(['all', 'owned', 'missing']).default('all'),
 });
 
 export const finishSchema = z.enum(FINISHES);

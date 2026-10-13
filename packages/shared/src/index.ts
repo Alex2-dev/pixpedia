@@ -9,3 +9,4 @@ export * from './schemas';
 export * from './platforms';
 export * from './packs';
 export * from './player';
+export * from './progression';

@@ -3,12 +3,19 @@ import { and, asc, desc, eq, ilike, sql, type SQL } from 'drizzle-orm';
 import type { FastifyPluginAsync } from 'fastify';
 import { z } from 'zod';
 import { cards, games, packTypes, userCards, users, type Db } from '@pixpedia/db';
-import { collectionQuerySchema, computePackStock, openPackSchema } from '@pixpedia/shared';
+import {
+  EXTRA_STANDARD_PACK_SHARDS,
+  collectionQuerySchema,
+  computePackStock,
+  openPackSchema,
+  recycleSchema,
+} from '@pixpedia/shared';
 import { requireUser } from '../auth/plugin';
 import { loadCardViews } from '../cards';
 import { ApiError, sendInvalid } from '../errors';
 import { escapeLike } from '../games';
 import { openPack, type PackConfig } from '../services/open-pack';
+import { listDuplicates, recycle } from '../services/recycle';
 
 export interface PlayerRouteOptions {
   db: Db;
@@ -59,7 +66,35 @@ export const playerRoutes: FastifyPluginAsync<PlayerRouteOptions> = async (app, 
       .from(packTypes)
       .where(eq(packTypes.isActive, true))
       .orderBy(asc(packTypes.id));
-    return { packs: types };
+    return { packs: types, extraStandardPackShards: EXTRA_STANDARD_PACK_SHARDS };
+  });
+
+  /** Doublons recyclables : nombre d'exemplaires et éclats qu'ils rapporteraient. */
+  app.get('/collection/duplicates', { preHandler: requireUser }, async (req) => {
+    const { copies, shards } = await listDuplicates(db, req.user!.id);
+    return { copies, shards };
+  });
+
+  app.post('/cards/recycle', { preHandler: requireUser }, async (req, reply) => {
+    const parsed = recycleSchema.safeParse(req.body);
+    if (!parsed.success) return sendInvalid(reply, parsed.error);
+    try {
+      return await recycle(db, req.user!.id, [parsed.data]);
+    } catch (err) {
+      if (err instanceof ApiError) return reply.code(err.status).send({ error: err.code });
+      throw err;
+    }
+  });
+
+  app.post('/cards/recycle-duplicates', { preHandler: requireUser }, async (req, reply) => {
+    const { items } = await listDuplicates(db, req.user!.id);
+    if (!items.length) return { copies: 0, shardsGained: 0, shards: null };
+    try {
+      return await recycle(db, req.user!.id, items);
+    } catch (err) {
+      if (err instanceof ApiError) return reply.code(err.status).send({ error: err.code });
+      throw err;
+    }
   });
 
   app.post(
@@ -74,6 +109,7 @@ export const playerRoutes: FastifyPluginAsync<PlayerRouteOptions> = async (app, 
           req.user!.id,
           parsed.data.packTypeId,
           parsed.data.idempotencyKey,
+          parsed.data.useShards,
         );
         const views = await loadCardViews(
           db,

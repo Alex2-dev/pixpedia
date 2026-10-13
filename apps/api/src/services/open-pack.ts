@@ -14,7 +14,8 @@ import {
   PACK_SIZE,
   applyPity,
   computePackStock,
-  lowerRarity,
+  rarityFallbackOrder,
+  EXTRA_STANDARD_PACK_SHARDS,
   packOddsSchema,
   resetsPity,
   rollFinish,
@@ -55,8 +56,8 @@ export interface OpenPackResult {
   shards: number;
 }
 
-/** Tirages maximum pour éviter un doublon dans le même pack avant d'abandonner. */
-const MAX_REDRAWS = 50;
+/** Tirages maximum par rareté pour éviter un doublon dans le même pack. */
+const MAX_REDRAWS = 20;
 
 /**
  * Ouvre un pack dans une transaction (spec §8.3). Le résultat n'existe qu'après le COMMIT ;
@@ -68,6 +69,7 @@ export async function openPack(
   userId: number,
   packTypeId: number,
   idempotencyKey: string,
+  useShards = false,
 ): Promise<OpenPackResult> {
   const { db, randomInt, pack } = deps;
   const now = deps.now();
@@ -104,9 +106,14 @@ export async function openPack(
     const [type] = await tx.select().from(packTypes).where(eq(packTypes.id, packTypeId));
     if (!type || !type.isActive) throw new ApiError(404, 'pack_type_not_found');
     const odds = packOddsSchema.parse(type.odds);
-    const isFree = type.cost === 0;
-    if (isFree && stock.available < 1) throw new ApiError(409, 'no_packs_available');
-    if (!isFree && user.shards < type.cost) throw new ApiError(409, 'not_enough_shards');
+    // Pack gratuit : pris sur le stock, ou payé en éclats si le joueur le demande (spec §5.6).
+    // Les éclats se gagnent en jouant : aucun argent réel, les cartes restent libres.
+    const fromStock = type.cost === 0 && stock.available > 0 && !useShards;
+    const shardCost = fromStock ? 0 : type.cost === 0 ? EXTRA_STANDARD_PACK_SHARDS : type.cost;
+    if (type.cost === 0 && stock.available < 1 && !useShards) {
+      throw new ApiError(409, 'no_packs_available');
+    }
+    if (user.shards < shardCost) throw new ApiError(409, 'not_enough_shards');
 
     const counts = new Map(
       (
@@ -117,35 +124,35 @@ export async function openPack(
       ).map((c) => [c.rarity as Rarity, c.n]),
     );
 
-    // 4. Tirage des 5 emplacements.
+    // 4. Tirage des 5 emplacements. Si une rareté manque au pool (ou n'a plus de carte
+    // différente), on essaie en dessous puis au-dessus : utile aux packs thématiques.
     const drawn: { cardId: number; rarity: Rarity; finish: Finish }[] = [];
     for (let slot = 0; slot < PACK_SIZE; slot++) {
-      let rarity: Rarity | null = rollRarity(odds[slot]!, randomInt);
-      if (slot === PACK_SIZE - 1) rarity = applyPity(rarity, user.pityCounter);
+      let rolled = rollRarity(odds[slot]!, randomInt);
+      if (slot === PACK_SIZE - 1) rolled = applyPity(rolled, user.pityCounter);
 
-      let cardId: number | null = null;
-      for (let attempt = 0; rarity && cardId === null && attempt < MAX_REDRAWS; attempt++) {
+      let pick: { cardId: number; rarity: Rarity } | null = null;
+      for (const rarity of rarityFallbackOrder(rolled)) {
         const n = counts.get(rarity) ?? 0;
-        if (n === 0) {
-          // Pool vide pour cette rareté : on descend d'un cran.
-          rarity = lowerRarity(rarity);
-          continue;
+        for (let attempt = 0; n > 0 && !pick && attempt < MAX_REDRAWS; attempt++) {
+          const idx = randomInt(n) + 1;
+          const [row] = await tx
+            .select({ cardId: drawPool.cardId })
+            .from(drawPool)
+            .where(
+              and(
+                eq(drawPool.packTypeId, type.id),
+                eq(drawPool.rarity, rarity),
+                eq(drawPool.idx, idx),
+              ),
+            );
+          if (row && !drawn.some((d) => d.cardId === row.cardId))
+            pick = { cardId: row.cardId, rarity };
         }
-        const idx = randomInt(n) + 1;
-        const [row] = await tx
-          .select({ cardId: drawPool.cardId })
-          .from(drawPool)
-          .where(
-            and(
-              eq(drawPool.packTypeId, type.id),
-              eq(drawPool.rarity, rarity),
-              eq(drawPool.idx, idx),
-            ),
-          );
-        if (row && !drawn.some((d) => d.cardId === row.cardId)) cardId = row.cardId;
+        if (pick) break;
       }
-      if (cardId === null || rarity === null) throw new ApiError(503, 'draw_pool_unavailable');
-      drawn.push({ cardId, rarity, finish: rollFinish(randomInt) });
+      if (!pick) throw new ApiError(503, 'draw_pool_unavailable');
+      drawn.push({ ...pick, finish: rollFinish(randomInt) });
     }
 
     // 5. Collection : une carte est « nouvelle » si le joueur ne l'avait dans aucune finition.
@@ -183,7 +190,7 @@ export async function openPack(
 
     // 6. Garantie, stock, éclats.
     const pityCounter = resetsPity(drawn.map((d) => d.rarity)) ? 0 : user.pityCounter + 1;
-    const after = isFree
+    const after = fromStock
       ? computePackStock(
           // Stock plein : computePackStock a déjà remis updatedAt à maintenant.
           { available: stock.available - 1, updatedAt: stock.updatedAt },
@@ -191,7 +198,7 @@ export async function openPack(
           pack,
         )
       : stock;
-    const shards = isFree ? user.shards : user.shards - type.cost;
+    const shards = user.shards - shardCost;
     await tx
       .update(users)
       .set({
@@ -207,11 +214,11 @@ export async function openPack(
       .insert(packOpenings)
       .values({ userId, packTypeId: type.id, idempotencyKey, cards: result, openedAt: now })
       .returning({ id: packOpenings.id });
-    if (!isFree) {
+    if (shardCost > 0) {
       await tx.insert(currencyLedger).values({
         userId,
         currency: 'shards',
-        delta: -type.cost,
+        delta: -shardCost,
         reason: 'pack_purchase',
         refId: opening!.id,
       });

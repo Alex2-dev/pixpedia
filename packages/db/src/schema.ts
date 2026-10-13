@@ -129,6 +129,55 @@ export const gameThemes = pgTable(
   (t) => [primaryKey({ columns: [t.gameId, t.themeId] })],
 );
 
+/** Sociétés IGDB (développeurs et éditeurs). */
+export const companies = pgTable('companies', {
+  id: integer('id').primaryKey(),
+  name: text('name').notNull(),
+  slug: text('slug').notNull(),
+});
+
+export const gameCompanies = pgTable(
+  'game_companies',
+  {
+    gameId: integer('game_id')
+      .notNull()
+      .references(() => games.id, { onDelete: 'cascade' }),
+    companyId: integer('company_id')
+      .notNull()
+      .references(() => companies.id),
+    /** developer | publisher */
+    role: text('role').notNull(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.gameId, t.companyId, t.role] }),
+    check('game_companies_role_check', sql`${t.role} in ('developer', 'publisher')`),
+    index('game_companies_company_idx').on(t.companyId),
+  ],
+);
+
+/** Franchises IGDB (Zelda, Final Fantasy…). */
+export const franchises = pgTable('franchises', {
+  id: integer('id').primaryKey(),
+  name: text('name').notNull(),
+  slug: text('slug').notNull(),
+});
+
+export const gameFranchises = pgTable(
+  'game_franchises',
+  {
+    gameId: integer('game_id')
+      .notNull()
+      .references(() => games.id, { onDelete: 'cascade' }),
+    franchiseId: integer('franchise_id')
+      .notNull()
+      .references(() => franchises.id),
+  },
+  (t) => [
+    primaryKey({ columns: [t.gameId, t.franchiseId] }),
+    index('game_franchises_franchise_idx').on(t.franchiseId),
+  ],
+);
+
 /* ---------- Modération (spec §4.4) ---------- */
 
 /** Liste noire versionnée : survit aux réimports. Pas de FK, un jeu peut être bloqué avant import. */
@@ -204,6 +253,44 @@ export const rarityOverrides = pgTable(
     reason: text('reason').notNull(),
   },
   (t) => [check('rarity_overrides_rarity_check', rarityCheck(t.minRarity))],
+);
+
+/* ---------- Sets : progression de collection (spec §5.7) ---------- */
+
+/**
+ * Sets d'une série : plateforme, décennie, année, genre, thème, développeur, éditeur, franchise.
+ * Reconstruits avec la série, dans la même transaction que le pool de tirage.
+ */
+export const sets = pgTable(
+  'sets',
+  {
+    id: serial('id').primaryKey(),
+    seriesId: integer('series_id')
+      .notNull()
+      .references(() => series.id),
+    type: text('type').notNull(),
+    /** Identifiant stable dans le type : slug IGDB, décennie (« 1990 ») ou année. */
+    key: text('key').notNull(),
+    name: text('name').notNull(),
+    total: integer('total').notNull(),
+  },
+  (t) => [
+    unique('sets_series_type_key_unique').on(t.seriesId, t.type, t.key),
+    index('sets_type_idx').on(t.seriesId, t.type, t.total),
+  ],
+);
+
+export const setCards = pgTable(
+  'set_cards',
+  {
+    setId: integer('set_id')
+      .notNull()
+      .references(() => sets.id, { onDelete: 'cascade' }),
+    cardId: integer('card_id')
+      .notNull()
+      .references(() => cards.id),
+  },
+  (t) => [primaryKey({ columns: [t.setId, t.cardId] }), index('set_cards_card_idx').on(t.cardId)],
 );
 
 /* ---------- Packs et tirage (spec §5.4, §8) ---------- */

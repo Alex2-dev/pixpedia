@@ -9,6 +9,7 @@ import { authPlugin } from './auth/plugin';
 import { authRoutes } from './routes/auth';
 import { gamesRoutes } from './routes/games';
 import { playerRoutes } from './routes/player';
+import { setsRoutes } from './routes/sets';
 import type { PackConfig } from './services/open-pack';
 
 export interface AppDeps {
@@ -45,6 +46,7 @@ export async function buildApp(deps: AppDeps, opts: FastifyServerOptions = {}) {
 
   await app.register(gamesRoutes(deps.db));
   await app.register(authRoutes, { db: deps.db, cookieSecure: deps.cookieSecure ?? true });
+  await app.register(setsRoutes, { db: deps.db });
   await app.register(playerRoutes, {
     db: deps.db,
     pack: deps.pack ?? { max: PACK_MAX, regenMs: PACK_REGEN_MINUTES * 60_000 },

@@ -36,8 +36,18 @@ const minecraft: IgdbGame = {
     },
   ],
   involved_companies: [
-    { id: 1, developer: false, company: { id: 1, name: 'Microsoft' } },
-    { id: 2, developer: true, company: { id: 2, name: 'Mojang Studios' } },
+    {
+      id: 1,
+      developer: false,
+      publisher: true,
+      company: { id: 1, name: 'Microsoft', slug: 'microsoft' },
+    },
+    { id: 2, developer: true, publisher: true, company: { id: 2, name: 'Mojang Studios' } },
+  ],
+  franchise: { id: 7, name: 'Minecraft', slug: 'minecraft' },
+  franchises: [
+    { id: 7, name: 'Minecraft', slug: 'minecraft' },
+    { id: 8, name: 'Pokémon Édition' },
   ],
   updated_at: 1760000000,
 };
@@ -60,6 +70,19 @@ describe('normalizeGame', () => {
       isDrawable: true,
     });
     expect(r.row.firstReleaseDate?.toISOString()).toBe('2011-11-18T00:00:00.000Z');
+  });
+
+  it('extrait développeurs, éditeurs et franchises, sans doublon', () => {
+    const r = normalizeGame(minecraft, refs, null, now);
+    expect(r.companies).toEqual([
+      { id: 1, name: 'Microsoft', slug: 'microsoft', role: 'publisher' },
+      { id: 2, name: 'Mojang Studios', slug: 'mojang-studios', role: 'developer' },
+      { id: 2, name: 'Mojang Studios', slug: 'mojang-studios', role: 'publisher' },
+    ]);
+    expect(r.franchises).toEqual([
+      { id: 7, name: 'Minecraft', slug: 'minecraft' },
+      { id: 8, name: 'Pokémon Édition', slug: 'pokemon-edition' },
+    ]);
   });
 
   it('ne garde que les liaisons vers des références connues', () => {
