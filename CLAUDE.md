@@ -51,4 +51,7 @@ Spec : `docs/spec.md` (v1.5). **Les règles ci-dessous priment sur la spec.** D�
 - Composant carte : `apps/web/src/card/` (porté du design `pixpedia-carte.html`). Galerie de contrôle sur `/galerie` en dev.
 - Le front appelle l'API sur `/api` (même origine : proxy Vite en dev, Nginx en prod).
 - Ombres dures en pixel, pas de halos flous.
-- 3D et animations en CSS (`transform`, `opacity`) + Motion + @use-gesture. Toujours respecter `prefers-reduced-motion`.
+- **Animations** : référence exacte `docs/design/pixpedia-animations.html`. Ouverture dans `apps/web/src/features/pack-opening/` (keyframes `op-`), drops dans `apps/web/src/components/drop/` (préfixes `bs-`, `ff-`, `h-`, jamais de nom de keyframe sans préfixe). Rareté → animation : `getRevealAnimation` (shared). Uniquement `transform` et `opacity` (sauf halos flous et holo), 40 particules max, tout démonté à la fin, pas de `will-change` permanent.
+- Saut des animations, blocage 1,5 s du premier Hall of Fame (profil), mode réduit (`prefers-reduced-motion` ou option du profil) : à respecter pour toute nouvelle animation.
+- Validation visuelle : `/dev/animations` (dev) et `pnpm test:e2e` (Playwright en Docker, captures dans `e2e/captures/`).
+- 3D et animations en CSS (`transform`, `opacity`) avec des hooks à minuteries ; @use-gesture prévu pour la déchirure au doigt (V2). Toujours respecter `prefers-reduced-motion`.

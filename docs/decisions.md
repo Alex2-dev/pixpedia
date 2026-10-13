@@ -2,6 +2,30 @@
 
 Décisions prises en cours de développement, en complément de la spec (`spec.md`). Les plus récentes en premier.
 
+## 2026-10-13 — Animations d'ouverture et de drop
+
+Référence exacte : `docs/design/pixpedia-animations.html` (timelines et keyframes repris tels quels).
+
+- **Ouverture** (`apps/web/src/features/pack-opening/`) : idle → déchirure → révélation → récap. Déchirure 1,75 s pour 1 pack ; à plusieurs packs, un pack toutes les 0,38 s en version accélérée (3,26 s pour 7). Carte face cachée seule au centre, qui respire ; 1er toucher retourne (ou lance le drop), 2e passe à la suivante ; la plus rare de chaque pack sort en dernier. « Tout révéler » mène au récap.
+- « Ouvrir 7 packs » de la maquette généralisé en **« Ouvrir mes N packs »** (2 à 10 selon le stock) : N ouvertures côté serveur, chacune avec sa clé d'idempotence, toutes gardées dans l'historique (un rechargement ne consomme rien). Pas de changement d'API.
+- La déchirure au doigt (V2) se branchera sur `TearDriver` ; seule la déchirure automatique existe.
+- **Drops** (`apps/web/src/components/drop/`) : Boss ~1,4 s, Boss final ~3 s, Hall of Fame ~4,5 s. Keyframes de la maquette renommés avec un préfixe par animation (`bs`, `ff`, `h`), les noms communs des iframes s'écrasant sinon. Correspondance rareté → animation dans `getRevealAnimation` (`packages/shared`).
+- CSS + un hook à minuteries (`useDropSequence`), sans bibliothèque d'animation : `motion` a été retiré.
+- **Saut** : un toucher amène les animations ponctuelles à leur état final, les boucles (halos, braises, confettis, bandeau) continuent. « Tout révéler » saute tout. Premier Hall of Fame : saut bloqué 1,5 s, mémorisé côté serveur (`users.first_hof_seen_at`).
+- **Animations réduites** : `prefers-reduced-motion` ou option du profil (`users.reduced_motion`, page Réglages). État final en fondu de 0,3 s, sans secousse, flash ni rotation.
+- **Écarts validés avec la maquette** :
+  - Hall of Fame : 40 particules visibles au maximum (une particule sur deux par salve de feux d'artifice, 16 confettis au lieu de 40). Particules extraites de la maquette (`particles.ts`, généré).
+  - Pourcentages calculés depuis les vrais taux du pack (Boss 5,4 % · 1 sur 19, Boss final 1,6 % · 1 sur 63, Hall of Fame 0,2 % · 1 sur 500) au lieu des valeurs d'exemple.
+  - « Ajouter au codex » mène au codex : les cartes y sont déjà depuis l'ouverture (tirage côté serveur). « Classeur » est renommé « Codex » (`/classeur` redirige).
+  - « Rejouer » rouvre le même nombre de packs si le stock le permet, sinon retour à l'accueil.
+  - Scène au format de la maquette (390 × 844), agrandie ou réduite pour tenir dans l'écran, sur ordinateur comme sur téléphone.
+  - Récap : vraies cartes réduites à 104 px au lieu de la mini-carte simplifiée.
+  - Bouton ✕ ajouté sur l'écran du pack fermé, pour revenir sans ouvrir.
+- **Fiche carte** : « ▶ Voir l'animation de drop » pour Boss et plus, visible même sans posséder la carte ; « Tirée le JJ/MM/AAAA » si possédée (pour toutes les raretés).
+- **Annonce Hall of Fame** : événement `card_drop_hof` (table `drop_events`) écrit à l'ouverture, lu par `GET /drops/hof` ; composant `HofBanner` prêt. Le temps réel (SSE ou WebSocket) reste à faire.
+- **Sons** : signaux `onCue` (`rumble`, `crack`, `impact`, `explode`, `slam`, `crown`, `title`, `fanfare`, `firework`, `trophy`) aux moments clés, sans fichier audio.
+- **Tests** : Vitest (`getRevealAnimation`, séquence de drop, ordre de révélation) et Playwright dans l'image Docker officielle (`pnpm test:e2e`, Arch Linux n'étant pas pris en charge). Les clics sur les cartes qui respirent sont forcés dans les tests, Playwright attendant sinon qu'elles s'immobilisent.
+
 ## 2026-10-13 — Mise en ligne sur alex2-server.fr/pixpedia
 
 - Pile de production séparée du dev : base dédiée (catalogue copié depuis le dev, sans aucun compte), API sans rechargement à chaud, front en build statique servi par Nginx. Le serveur Vite de dev n'est jamais exposé.
