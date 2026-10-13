@@ -10,6 +10,7 @@ Spec : `docs/spec.md` (v1.5). **Les règles ci-dessous priment sur la spec.** D�
 - `docker compose up` (pnpm install sur l'hôte avant). Ports hôte : Postgres 5436, API 3014, web 5186.
 - `pnpm test`, `pnpm typecheck`, `pnpm lint`, `pnpm worker:{probe,import,sync,series}`, `pnpm db:{generate,migrate}`.
 - Toute logique de calcul va dans `packages/shared`, en fonctions pures, **avec tests Vitest**.
+- Tests d'intégration API sur la base `pixpedia_test` (`TEST_DATABASE_URL`), regroupés dans `apps/api/src/*.int.test.ts`.
 - Schéma : `packages/db/src/schema.ts` puis `pnpm db:generate`. Jamais de modification manuelle de la base en prod.
 
 ## Règles de jeu
@@ -29,13 +30,14 @@ Spec : `docs/spec.md` (v1.5). **Les règles ci-dessous priment sur la spec.** D�
 
 ## Argent — non négociable
 
-- Chaque carte possédée aura `is_bound` (liée = non revendable).
+- Chaque carte possédée a `is_bound` (liée = non revendable). Les packs gratuits donnent des cartes libres.
 - **Règle JONUM : on ne peut jamais payer pour obtenir au hasard une carte revendable.** Payant + aléatoire ⇒ cartes liées.
 - Paiements **en France uniquement** au lancement (`country_features`). Aucun paiement codé pour l'instant.
 
 ## Sécurité et qualité
 
 - Secrets (`TWITCH_*`, `DATABASE_URL`, …) dans `.env` uniquement, jamais dans le code ni git.
+- Auth : email + mot de passe (argon2id), sessions en base (jeton haché), 15 ans minimum, email non vérifié pour l'instant.
 - Entrées validées avec zod. IGDB : jamais plus de 4 req/s ni 8 requêtes en parallèle (plafond codé dans `apps/worker/src/config.ts`).
 - Commits petits, clairs, **en français**.
 

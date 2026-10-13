@@ -9,11 +9,15 @@
     "typecheck": "tsc -p tsconfig.json"
   },
   "dependencies": {
+    "@fastify/cookie": "^11.1.3",
     "@fastify/cors": "^11.3.1",
+    "@fastify/rate-limit": "^11.2.1",
+    "@node-rs/argon2": "^2.2.2",
     "@pixpedia/db": "workspace:*",
     "@pixpedia/shared": "workspace:*",
     "drizzle-orm": "^0.45.4",
     "fastify": "^5.12.5",
+    "fastify-plugin": "^6.0.1",
     "zod": "^4.6.7"
   }
 }

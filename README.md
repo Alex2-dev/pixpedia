@@ -3,13 +3,13 @@
 Jeu web de cartes à collectionner où **chaque carte est un vrai jeu vidéo** (données IGDB).
 Studio Alex². Spécification complète : [docs/spec.md](docs/spec.md), décisions prises : [docs/decisions.md](docs/decisions.md).
 
-État actuel : phases 0 et 1 de la roadmap (socle + import du catalogue IGDB).
+État actuel : phases 0 à 3 de la roadmap (socle, catalogue IGDB, calibrage et tirage, comptes et ouverture de packs). Pas encore de front de jeu.
 
 ## Structure
 
 ```
 apps/web         React + TypeScript + Vite (PWA) — page « bientôt »
-apps/api         Fastify — GET /health, GET /games?search=
+apps/api         Fastify — comptes, packs, collection, recherche
 apps/worker      CLI d'import / sync IGDB (+ planificateur quotidien)
 packages/shared  Règles du jeu : raretés, prestige, stats, familles, filtres, schémas zod
 packages/db      Schéma Drizzle, migrations, client PostgreSQL
@@ -62,6 +62,31 @@ Toutes documentées dans [.env.example](.env.example). Le fichier `.env` n'est j
 | `pnpm typecheck`, `pnpm lint`, `pnpm format`                  | Qualité                                                                                         |
 
 Chaque import affiche un rapport (reçus, nouveaux, inclus, exclus et quarantaine par raison, requêtes, 429, durée) et l'enregistre dans `sync_runs`.
+
+## API
+
+| Méthode | Route            | Rôle                                                                         |
+| ------- | ---------------- | ---------------------------------------------------------------------------- |
+| GET     | `/health`        | État de l'API et de la base                                                  |
+| GET     | `/games?search=` | Recherche dans le catalogue, avec la carte de la dernière série              |
+| POST    | `/auth/register` | Inscription (`username`, `email`, `password`, `countryCode`, `ageConfirmed`) |
+| POST    | `/auth/login`    | Connexion, cookie de session `httpOnly`                                      |
+| POST    | `/auth/logout`   | Déconnexion                                                                  |
+| GET     | `/me`            | Profil, stock de packs, prochaine recharge, monnaies                         |
+| GET     | `/packs`         | Types de packs et taux de drop publiés                                       |
+| POST    | `/packs/open`    | Ouvre un pack (`packTypeId`, `idempotencyKey` UUID)                          |
+| GET     | `/collection`    | Cartes possédées (`page`, `pageSize`, `rarity`, `family`, `search`, `sort`)  |
+
+## Tests
+
+`pnpm test` lance les tests unitaires et les tests d'intégration de l'API. Ces derniers ont besoin d'une base dédiée, vidée à chaque test :
+
+```bash
+docker compose exec postgres createdb -U pixpedia pixpedia_test   # une seule fois
+# puis TEST_DATABASE_URL dans .env
+```
+
+Sans `TEST_DATABASE_URL`, les tests d'intégration sont ignorés.
 
 ## Exemple
 

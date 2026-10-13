@@ -2,6 +2,19 @@
 
 Décisions prises en cours de développement, en complément de la spec (`spec.md`). Les plus récentes en premier.
 
+## 2026-10-13 — Phase 3 : comptes, ouverture de packs, collection
+
+- Connexion par **email + mot de passe seulement** (décision ouverte n°6). Discord ou Twitch plus tard.
+- **15 ans minimum** (décision ouverte n°20) : case obligatoire à l'inscription, date enregistrée dans `users.age_confirmed_at`.
+- **Vérification d'email préparée, pas active** : colonne `users.email_verified_at`, aucun envoi de mail tant qu'il n'y a pas de SMTP.
+- Mots de passe en argon2id (19 Mio, 2 passes, recommandation OWASP). Un email inconnu coûte le même temps qu'un mauvais mot de passe.
+- Sessions en base (`sessions`) : seul le SHA-256 du jeton est stocké, le jeton vit dans un cookie `httpOnly`, `Secure`, `SameSite=Lax`, valable 30 jours. Pas de `SESSION_SECRET` nécessaire.
+- Pseudo et email uniques sans tenir compte de la casse. Pays déclaré obligatoire à l'inscription.
+- Limites de débit par IP : inscription 5 par heure, connexion 10 par minute, ouverture 30 par minute.
+- Ouverture de pack : transaction de la spec §8.3, verrou `FOR UPDATE` sur le joueur, clé d'idempotence (le même tirage est renvoyé en cas de double clic). Les packs gratuits donnent des **cartes libres** (`is_bound = false`).
+- Une carte est « nouvelle » si le joueur ne la possédait dans aucune finition.
+- Base de test séparée `pixpedia_test` (`TEST_DATABASE_URL`) pour les tests d'intégration ; ils sont ignorés si la variable est absente.
+
 ## 2026-10-13 — Phase 2 : tirage
 
 - Taux de drop du pack standard repris de la spec §5.4 avec les raretés Pixpedia (Commun→Starter, Peu commun→Bonus, Rare→Combo, Épique→Boss, Ultra rare→Boss final, Légendaire→Hall of Fame) :

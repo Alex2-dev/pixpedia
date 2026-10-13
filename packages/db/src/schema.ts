@@ -1,5 +1,7 @@
 import { sql } from 'drizzle-orm';
 import {
+  bigint,
+  bigserial,
   boolean,
   char,
   check,
@@ -15,6 +17,8 @@ import {
   text,
   timestamp,
   unique,
+  uniqueIndex,
+  uuid,
 } from 'drizzle-orm/pg-core';
 import type { RarityParams, SlotOdds } from '@pixpedia/shared';
 
@@ -247,6 +251,119 @@ export const drawPoolCounts = pgTable(
     n: integer('n').notNull(),
   },
   (t) => [primaryKey({ columns: [t.packTypeId, t.rarity] })],
+);
+
+/* ---------- Joueurs (spec §7, §7.1) ---------- */
+
+export const users = pgTable(
+  'users',
+  {
+    id: serial('id').primaryKey(),
+    username: text('username').notNull(),
+    email: text('email').notNull(),
+    passwordHash: text('password_hash').notNull(),
+    /** player | admin */
+    role: text('role').notNull().default('player'),
+    /** Pays déclaré à l'inscription (spec §17.9). */
+    countryCode: char('country_code', { length: 2 }).notNull(),
+    /** Case « 15 ans ou plus » cochée à l'inscription. */
+    ageConfirmedAt: timestamptz('age_confirmed_at').notNull(),
+    /** Vérification d'email prévue, pas encore active (`null` = non vérifié). */
+    emailVerifiedAt: timestamptz('email_verified_at'),
+    packsAvailable: smallint('packs_available').notNull().default(10),
+    packsUpdatedAt: timestamptz('packs_updated_at').notNull().defaultNow(),
+    pityCounter: smallint('pity_counter').notNull().default(0),
+    /** Monnaie gagnée en jouant. */
+    shards: integer('shards').notNull().default(0),
+    /** Monnaie payante : prévue dès le départ, aucun paiement actif. */
+    coins: integer('coins').notNull().default(0),
+    createdAt: timestamptz('created_at').notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex('users_username_lower_idx').on(sql`lower(${t.username})`),
+    uniqueIndex('users_email_lower_idx').on(sql`lower(${t.email})`),
+    check('users_role_check', sql`${t.role} in ('player', 'admin')`),
+    check('users_currencies_check', sql`${t.shards} >= 0 and ${t.coins} >= 0`),
+  ],
+);
+
+/** Sessions : seul le hash SHA-256 du jeton est stocké, le jeton vit dans un cookie httpOnly. */
+export const sessions = pgTable(
+  'sessions',
+  {
+    tokenHash: text('token_hash').primaryKey(),
+    userId: integer('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    createdAt: timestamptz('created_at').notNull().defaultNow(),
+    expiresAt: timestamptz('expires_at').notNull(),
+  },
+  (t) => [index('sessions_user_idx').on(t.userId)],
+);
+
+export const userCards = pgTable(
+  'user_cards',
+  {
+    userId: integer('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    cardId: integer('card_id')
+      .notNull()
+      .references(() => cards.id),
+    /** normal | holo | full_art | code d'événement */
+    finish: text('finish').notNull().default('normal'),
+    /** true = liée au compte : ni vendable ni échangeable (règle JONUM, spec §17.4). */
+    isBound: boolean('is_bound').notNull().default(false),
+    quantity: integer('quantity').notNull().default(1),
+    isFavorite: boolean('is_favorite').notNull().default(false),
+    firstObtainedAt: timestamptz('first_obtained_at').notNull().defaultNow(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.userId, t.cardId, t.finish, t.isBound] }),
+    check('user_cards_quantity_check', sql`${t.quantity} > 0`),
+    index('user_cards_user_idx').on(t.userId, t.firstObtainedAt.desc()),
+  ],
+);
+
+/** Journal de chaque tirage, pour l'idempotence et les litiges (spec §5.4, §8.3). */
+export const packOpenings = pgTable(
+  'pack_openings',
+  {
+    id: bigserial('id', { mode: 'number' }).primaryKey(),
+    userId: integer('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    packTypeId: integer('pack_type_id')
+      .notNull()
+      .references(() => packTypes.id),
+    idempotencyKey: uuid('idempotency_key').notNull(),
+    /** [{cardId, gameId, rarity, finish, isNew}] */
+    cards: jsonb('cards').notNull(),
+    openedAt: timestamptz('opened_at').notNull().defaultNow(),
+  },
+  (t) => [unique('pack_openings_idempotency_unique').on(t.userId, t.idempotencyKey)],
+);
+
+/** Tout mouvement de monnaie est tracé (spec §7.1). */
+export const currencyLedger = pgTable(
+  'currency_ledger',
+  {
+    id: bigserial('id', { mode: 'number' }).primaryKey(),
+    userId: integer('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    /** shards | coins */
+    currency: text('currency').notNull(),
+    delta: integer('delta').notNull(),
+    /** recycle | pack_purchase | reward… */
+    reason: text('reason').notNull(),
+    refId: bigint('ref_id', { mode: 'number' }),
+    createdAt: timestamptz('created_at').notNull().defaultNow(),
+  },
+  (t) => [
+    check('currency_ledger_currency_check', sql`${t.currency} in ('shards', 'coins')`),
+    index('currency_ledger_user_idx').on(t.userId, t.createdAt),
+  ],
 );
 
 /* ---------- Suivi des imports ---------- */
