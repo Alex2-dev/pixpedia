@@ -82,7 +82,7 @@ describe("classifyGame : critères d'inclusion", () => {
     [{ gameType: 1 }, 'inclusion:game_type'],
     [{ gameType: 11 }, 'inclusion:game_type'],
     [{ gameType: null }, 'inclusion:game_type'],
-    [{ firstReleaseDate: null }, 'inclusion:unreleased'],
+    [{ firstReleaseDate: null }, 'inclusion:no_release_date'],
     [{ firstReleaseDate: new Date('2027-01-01T00:00:00Z') }, 'inclusion:unreleased'],
     [{ hasCover: false }, 'inclusion:no_cover'],
     [{ hasOfficialPlatform: false }, 'inclusion:platform'],

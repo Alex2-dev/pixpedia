@@ -2,6 +2,13 @@
 
 Décisions prises en cours de développement, en complément de la spec (`spec.md`). Les plus récentes en premier.
 
+## 2026-10-13 — Premier import complet
+
+- 277 119 jeux reçus en 9 min 44 s, 1 113 requêtes IGDB, aucun 429.
+- 196 053 inclus, 80 199 exclus (sans date 47 191, plateforme 19 411, thème Erotic 9 684, à venir 3 889, ESRB AO 19, sans jaquette 5), 867 en quarantaine (surtout le tag « nsfw » sur des visual novels adultes).
+- Série S0 : 135 Hall of Fame, 565 Boss final, 1 025 Boss, 2 559 Combo, 21 311 Bonus, 170 458 Starter (87 % des jeux n'ont aucune note). Moyenne C = 68,0.
+- Test visuel du top par décennie (spec §5.2) : validé, les Hall of Fame sont les classiques attendus.
+
 ## 2026-10-12 — Phases 0 et 1 (socle + catalogue)
 
 ### Identité et règles qui priment sur la spec
@@ -27,7 +34,7 @@ Décisions prises en cours de développement, en complément de la spec (`spec.m
 
 ### Stats
 
-- Population de référence : tous les jeux éligibles de la série (pas par décennie).
+- Population de référence : les jeux éligibles de la série **qui ont la donnée** (pas par décennie). Pour DEF, seulement les jeux avec au moins 1 vote : avec les 170 000 jeux sans vote dans la population, tout jeu noté dépassait le 87e percentile et DEF valait 99 partout.
 - Ex æquo : même stat. La plus petite valeur donne 10, la plus grande 99.
 - Valeurs par défaut : ATK 40 sans note (un jeu non noté est en général obscur), PV et VIT 50 sans durée de jeu. DEF n'est jamais manquante (0 vote = 10).
 - Temps de jeu : champ `normally` de `game_time_to_beats`.
@@ -49,6 +56,7 @@ Décisions prises en cours de développement, en complément de la spec (`spec.m
 
 - Types de jeux inclus : jeu principal (0), remake (8), remaster (9), chacun avec sa propre carte (décision ouverte n°4). Portages, DLC, extensions, bundles, mods exclus. Réglable dans `INCLUDED_GAME_TYPES`.
 - Plateformes historiques incluses (décision ouverte n°5) : Arcade, Atari, Neo Geo, Amiga, plus DOS dans la famille PC. Liste blanche par slug dans `packages/shared/src/platforms.ts`, vérifiée avec `pnpm worker:probe` le 2026-10-12 (56 plateformes reconnues sur 220).
+- Jeu sans date de sortie : exclu avec la raison `inclusion:no_release_date` (47 191 jeux au premier import complet), distincte de `inclusion:unreleased` (date future, reclassé automatiquement à sa sortie).
 - L'import complet ne demande à IGDB que les jeux des types retenus avec jaquette. Les jeux non sortis ou sans plateforme de la liste blanche sont stockés en `excluded` avec une raison `inclusion:*`. Un jeu non sorti est reclassé automatiquement quand sa date passe.
 - La sync incrémentale prend tous les jeux modifiés (sans filtre de type ni de jaquette), pour pouvoir aussi exclure un jeu qui change.
 - Point de départ de la sync : `max(games.igdb_updated_at)`.

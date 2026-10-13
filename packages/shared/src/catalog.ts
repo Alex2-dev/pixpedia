@@ -121,7 +121,8 @@ export function classifyGame(game: ClassifyInput, now: Date = new Date()): Class
 
   if (game.gameType === null || !(INCLUDED_GAME_TYPES as readonly number[]).includes(game.gameType))
     return { status: 'excluded', reason: 'inclusion:game_type' };
-  if (!game.firstReleaseDate || game.firstReleaseDate.getTime() > now.getTime())
+  if (!game.firstReleaseDate) return { status: 'excluded', reason: 'inclusion:no_release_date' };
+  if (game.firstReleaseDate.getTime() > now.getTime())
     return { status: 'excluded', reason: 'inclusion:unreleased' };
   if (!game.hasCover) return { status: 'excluded', reason: 'inclusion:no_cover' };
   if (!game.hasOfficialPlatform) return { status: 'excluded', reason: 'inclusion:platform' };

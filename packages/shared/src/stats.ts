@@ -1,4 +1,4 @@
-import { STAT_DEFAULTS } from './constants';
+import { STAT_DEFAULTS, STAT_MIN } from './constants';
 import { inversePercentileStat, percentileStat, sortPopulation } from './percentile';
 
 export interface StatsInput {
@@ -30,7 +30,8 @@ export function buildStatsPopulation(games: Iterable<StatsInput>): StatsPopulati
   const ttb: number[] = [];
   for (const g of games) {
     if (g.rating !== null) ratings.push(g.rating);
-    votes.push(g.votes);
+    // Les jeux sans vote (la grande majorité) sont exclus : ils écraseraient l'échelle de DEF.
+    if (g.votes > 0) votes.push(g.votes);
     if (g.timeToBeatSec !== null && g.timeToBeatSec > 0) ttb.push(g.timeToBeatSec);
   }
   return {
@@ -43,6 +44,7 @@ export function buildStatsPopulation(games: Iterable<StatsInput>): StatsPopulati
 /**
  * Stats de combat en percentile 10–99 (règles Pixpedia, remplacent la spec §5.3) :
  * ATK = note, DEF = nombre de votes, PV = temps de jeu, VIT = inverse du temps de jeu.
+ * Chaque percentile se calcule parmi les jeux qui ont la donnée ; 0 vote donne DEF 10.
  */
 export function computeStats(game: StatsInput, pop: StatsPopulation): CardStats {
   const hasTtb = game.timeToBeatSec !== null && game.timeToBeatSec > 0;
@@ -51,7 +53,7 @@ export function computeStats(game: StatsInput, pop: StatsPopulation): CardStats 
       game.rating === null
         ? STAT_DEFAULTS.atkWithoutRating
         : percentileStat(game.rating, pop.ratings),
-    def: percentileStat(game.votes, pop.votes),
+    def: game.votes > 0 ? percentileStat(game.votes, pop.votes) : STAT_MIN,
     hp: hasTtb
       ? percentileStat(game.timeToBeatSec as number, pop.timeToBeat)
       : STAT_DEFAULTS.hpWithoutTimeToBeat,

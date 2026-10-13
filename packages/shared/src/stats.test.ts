@@ -12,7 +12,7 @@ const pop = buildStatsPopulation(games);
 describe('computeStats', () => {
   it('ignore les données manquantes dans les populations', () => {
     expect(pop.ratings).toHaveLength(3);
-    expect(pop.votes).toHaveLength(4);
+    expect(pop.votes).toHaveLength(2);
     expect(pop.timeToBeat).toHaveLength(3);
   });
 
@@ -23,6 +23,20 @@ describe('computeStats', () => {
 
   it('applique les valeurs par défaut quand la donnée manque', () => {
     expect(computeStats(games[3]!, pop)).toEqual({ atk: 40, def: 10, hp: 50, spd: 50 });
+  });
+
+  it('calcule DEF parmi les jeux votés seulement : les jeux sans vote ne tassent pas l’échelle', () => {
+    const many: StatsInput[] = [
+      ...Array.from({ length: 100 }, () => ({ rating: null, votes: 0, timeToBeatSec: null })),
+      { rating: 50, votes: 5, timeToBeatSec: null },
+      { rating: 60, votes: 50, timeToBeatSec: null },
+      { rating: 70, votes: 500, timeToBeatSec: null },
+    ];
+    const p = buildStatsPopulation(many);
+    expect(computeStats(many[100]!, p).def).toBe(10);
+    expect(computeStats(many[101]!, p).def).toBe(55);
+    expect(computeStats(many[102]!, p).def).toBe(99);
+    expect(computeStats(many[0]!, p).def).toBe(10);
   });
 
   it('reste toujours entre 10 et 99', () => {
