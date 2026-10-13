@@ -7,3 +7,5 @@ coverage/
 !.env.example
 dev-dist/
 .DS_Store
+e2e/test-results/
+e2e/captures/

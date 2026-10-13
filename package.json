@@ -19,10 +19,12 @@
     "worker:probe": "pnpm --filter @pixpedia/worker cli probe",
     "worker:import": "pnpm --filter @pixpedia/worker cli import",
     "worker:sync": "pnpm --filter @pixpedia/worker cli sync",
-    "worker:series": "pnpm --filter @pixpedia/worker cli series"
+    "worker:series": "pnpm --filter @pixpedia/worker cli series",
+    "test:e2e": "docker run --rm --network host --user \"$(id -u):$(id -g)\" -e HOME=/tmp -v \"$PWD\":/repo -w /repo/e2e mcr.microsoft.com/playwright:v1.64.0-noble /repo/node_modules/.bin/playwright test"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
+    "@playwright/test": "^1.64.0",
     "@types/node": "^26.6.5",
     "eslint": "^10.12.0",
     "eslint-config-prettier": "^10.1.8",
