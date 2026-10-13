@@ -421,3 +421,45 @@
     transition: none;
   }
 }
+
+/* ---------- Silhouette d'une carte manquante ---------- */
+.silhouette {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 240px;
+  height: 336px;
+  transform-origin: top left;
+  background: var(--shadow);
+}
+.silhouette__inner {
+  position: absolute;
+  inset: 4px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 16px;
+  text-align: center;
+  background:
+    repeating-linear-gradient(135deg, rgba(255, 255, 255, 0.02) 0 6px, transparent 6px 12px),
+    var(--ink);
+}
+.silhouette__rarity {
+  position: absolute;
+  top: 10px;
+  left: 12px;
+  font-size: 9px;
+}
+.silhouette__number {
+  font-size: 14px;
+  color: var(--ash);
+}
+.silhouette__name {
+  font-family: Cinzel, serif;
+  font-weight: 700;
+  font-size: 15px;
+  color: #6b6178;
+  line-height: 1.2;
+}

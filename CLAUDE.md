@@ -26,6 +26,8 @@ Spec : `docs/spec.md` (v1.5). **Les règles ci-dessous priment sur la spec.** D�
   Cycle Action > Stratégie > Vitesse > Aventure > RPG > Action, +20 % de dégâts.
 - Le **système de combat n'est pas tranché** : ne pas le coder. Champ `cards.combat` (jsonb) réservé.
 - Tirage : taux par emplacement dans `pack_types.odds`, `draw_pool` reconstruit dans la transaction du calcul de série. Hasard via `crypto.randomInt` uniquement.
+- Sets (8 types : plateforme, décennie, année, genre, thème, développeur, éditeur, franchise) et packs thématiques (pool = un set) reconstruits avec la série.
+- Éclats : gagnés en recyclant des doublons libres, jamais achetés. Une carte liée ne se recycle jamais.
 - Exclusion du contenu sexuel (spec §4) : `eligible` / `quarantine` / `excluded`, en cas de doute quarantaine.
 
 ## Argent — non négociable

@@ -6,6 +6,8 @@ import { Login, Register } from './pages/Auth';
 import { CardDetail } from './pages/CardDetail';
 import { Collection } from './pages/Collection';
 import { Gallery } from './pages/Gallery';
+import { SetDetail } from './pages/SetDetail';
+import { Sets } from './pages/Sets';
 import { Home } from './pages/Home';
 import { OpenPack } from './pages/OpenPack';
 import { SessionProvider, useSession } from './session';
@@ -50,6 +52,8 @@ createRoot(document.getElementById('root') as HTMLElement).render(
               }
             />
             <Route path="carte/:id" element={<CardDetail />} />
+            <Route path="sets" element={<Sets />} />
+            <Route path="sets/:type/:key" element={<SetDetail />} />
             {import.meta.env.DEV && <Route path="galerie" element={<Gallery />} />}
             <Route path="*" element={<Navigate to="/" replace />} />
           </Route>

@@ -1,4 +1,4 @@
-import type { CardView, Family, Finish, Rarity, SlotOdds } from '@pixpedia/shared';
+import type { CardView, Family, Finish, Rarity, SetType, SlotOdds } from '@pixpedia/shared';
 
 export class ApiError extends Error {
   constructor(
@@ -17,6 +17,8 @@ const MESSAGES: Record<string, string> = {
   account_exists: 'Un compte existe déjà avec cet email.',
   invalid_input: 'Certains champs ne sont pas valides.',
   no_packs_available: 'Plus de pack disponible pour le moment.',
+  not_enough_duplicates: 'Pas assez de doublons à recycler.',
+  pack_type_not_found: 'Ce pack n’est plus disponible.',
   not_enough_shards: 'Pas assez d’éclats.',
   unauthenticated: 'Connecte-toi pour continuer.',
   rate_limited: 'Trop de tentatives, réessaie dans un moment.',
@@ -82,6 +84,7 @@ export interface OpenResult {
   packsAvailable: number;
   nextPackAt: string | null;
   pityCounter: number;
+  shards: number;
 }
 
 export type OwnedCard = CardView & {
@@ -113,3 +116,45 @@ export type CardDetail = CardView & {
   igdbUrl: string;
   owned: { finish: string; isBound: boolean; quantity: number; firstObtainedAt: string }[];
 };
+
+export interface PacksResponse {
+  packs: PackType[];
+  extraStandardPackShards: number;
+}
+
+export interface SetEntry {
+  type: SetType;
+  key: string;
+  name: string;
+  total: number;
+  owned: number;
+}
+
+export interface SetsPage {
+  page: number;
+  pageSize: number;
+  total: number;
+  sets: SetEntry[];
+}
+
+export interface SetsSummary {
+  types: { type: SetType; sets: number; started: number; completed: number }[];
+}
+
+export interface SetDetail {
+  type: SetType;
+  key: string;
+  name: string;
+  total: number;
+  owned: number;
+  page: number;
+  pageSize: number;
+  matching: number;
+  cards: (CardView & { owned: boolean })[];
+}
+
+export interface RecycleResult {
+  copies: number;
+  shardsGained: number;
+  shards: number | null;
+}

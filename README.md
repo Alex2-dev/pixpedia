@@ -3,7 +3,7 @@
 Jeu web de cartes à collectionner où **chaque carte est un vrai jeu vidéo** (données IGDB).
 Studio Alex². Spécification complète : [docs/spec.md](docs/spec.md), décisions prises : [docs/decisions.md](docs/decisions.md).
 
-État actuel : phases 0 à 4 de la roadmap (socle, catalogue IGDB, calibrage et tirage, comptes et ouverture de packs, front de jeu).
+État actuel : phases 0 à 5 de la roadmap (socle, catalogue IGDB, calibrage et tirage, comptes et packs, front de jeu, sets, packs thématiques et recyclage).
 
 ## Structure
 

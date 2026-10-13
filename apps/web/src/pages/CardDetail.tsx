@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
+import { recycleValue } from '@pixpedia/shared';
 import { api, errorMessage, type CardDetail as Detail } from '../api';
 import { toCardData } from '../card/adapt';
 import { Card } from '../card/Card';
+import { useSession } from '../session';
 import { useCardWidth } from '../useCardWidth';
 
 const FINISH_LABEL: Record<string, string> = {
@@ -17,6 +19,9 @@ export function CardDetail() {
   const [card, setCard] = useState<Detail | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  const [version, setVersion] = useState(0);
+  const { refresh } = useSession();
+
   useEffect(() => {
     let cancelled = false;
     api<Detail>(`/cards/${id}`).then(
@@ -26,7 +31,13 @@ export function CardDetail() {
     return () => {
       cancelled = true;
     };
-  }, [id]);
+  }, [id, version]);
+
+  const recycleCopies = async (finish: string, quantity: number) => {
+    await api('/cards/recycle', { method: 'POST', body: { cardId: Number(id), finish, quantity } });
+    await refresh();
+    setVersion((v) => v + 1);
+  };
 
   if (error) {
     return (
@@ -90,6 +101,16 @@ export function CardDetail() {
                   {FINISH_LABEL[o.finish] ?? o.finish} ×{o.quantity}
                   {o.isBound ? ' · liée au compte' : ''} · depuis le{' '}
                   {new Date(o.firstObtainedAt).toLocaleDateString('fr-FR')}
+                  {!o.isBound && o.quantity > 1 && (
+                    <button
+                      type="button"
+                      className="btn-link recycle"
+                      onClick={() => void recycleCopies(o.finish, o.quantity - 1)}
+                    >
+                      Recycler {o.quantity - 1} doublon{o.quantity > 2 ? 's' : ''} (+
+                      {recycleValue(card.rarity, o.quantity - 1)} éclats)
+                    </button>
+                  )}
                 </li>
               ))}
             </ul>

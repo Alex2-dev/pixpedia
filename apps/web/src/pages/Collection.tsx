@@ -11,15 +11,66 @@ import {
 import {
   api,
   errorMessage,
+  type RecycleResult,
   type CollectionFilters,
   type CollectionPage,
   type OwnedCard,
 } from '../api';
 import { toCardData } from '../card/adapt';
 import { Card } from '../card/Card';
+import { useSession } from '../session';
 import { useCardWidth } from '../useCardWidth';
 
 const PAGE_SIZE = 40;
+
+/** Bandeau de recyclage : tous les doublons libres en éclats, en un clic (spec §5.6). */
+function Duplicates({ onRecycled }: { onRecycled: () => void }) {
+  const { refresh } = useSession();
+  const [info, setInfo] = useState<{ copies: number; shards: number } | null>(null);
+  const [message, setMessage] = useState<string | null>(null);
+  const [pending, setPending] = useState(false);
+  const [version, setVersion] = useState(0);
+
+  useEffect(() => {
+    api<{ copies: number; shards: number }>('/collection/duplicates').then(setInfo, () =>
+      setInfo(null),
+    );
+  }, [version]);
+
+  if (!info || (info.copies === 0 && !message)) return null;
+  const recycleAll = async () => {
+    setPending(true);
+    try {
+      const r = await api<RecycleResult>('/cards/recycle-duplicates', { method: 'POST' });
+      setMessage(`${r.copies} doublons recyclés : +${r.shardsGained} éclats.`);
+      await refresh();
+      onRecycled();
+      setVersion((v) => v + 1);
+    } catch (err) {
+      setMessage(errorMessage(err));
+    } finally {
+      setPending(false);
+    }
+  };
+  return (
+    <div className="panel duplicates" aria-live="polite">
+      {info.copies > 0 ? (
+        <>
+          <p>
+            <strong>{info.copies}</strong> doublon{info.copies > 1 ? 's' : ''} recyclable
+            {info.copies > 1 ? 's' : ''} contre <strong>{info.shards}</strong> éclats. Un exemplaire
+            de chaque carte est toujours gardé.
+          </p>
+          <button type="button" className="btn btn-small" disabled={pending} onClick={recycleAll}>
+            Recycler les doublons
+          </button>
+        </>
+      ) : (
+        <p>{message}</p>
+      )}
+    </div>
+  );
+}
 
 function query(filters: CollectionFilters, page: number): string {
   const p = new URLSearchParams({
@@ -83,6 +134,8 @@ export function Collection() {
         <h1>Classeur</h1>
         {total !== null && <span className="px-label muted">{total} cartes</span>}
       </header>
+
+      <Duplicates onRecycled={() => setFilters((f) => ({ ...f }))} />
 
       <div className="filters" role="search">
         <input

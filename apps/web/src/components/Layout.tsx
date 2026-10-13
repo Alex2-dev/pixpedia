@@ -18,6 +18,7 @@ export function Layout() {
               Packs
             </NavLink>
             <NavLink to="/classeur">Classeur</NavLink>
+            <NavLink to="/sets">Sets</NavLink>
           </nav>
         )}
         <div className="account">
@@ -25,6 +26,9 @@ export function Layout() {
             <>
               <span className="px-label packs-pill" title="Packs disponibles">
                 {me.packsAvailable}/{me.packsMax}
+              </span>
+              <span className="px-label shards" title="Éclats">
+                ◆ {me.shards}
               </span>
               <span className="username">{me.username}</span>
               <button

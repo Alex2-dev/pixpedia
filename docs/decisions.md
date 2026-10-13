@@ -2,6 +2,18 @@
 
 Décisions prises en cours de développement, en complément de la spec (`spec.md`). Les plus récentes en premier.
 
+## 2026-10-13 — Phase 5 : sets, packs thématiques, éclats
+
+- **Sets** sur 8 dimensions, à la demande de l'équipe : plateforme, décennie, année, genre, thème, développeur, éditeur, franchise. Une carte compte dans tous ses sets.
+- Éditeurs et franchises désormais importés d'IGDB (`companies`, `game_companies` avec le rôle, `franchises`, `game_franchises`).
+- Taille minimum d'un set : 5 cartes pour développeurs et éditeurs, 3 pour les franchises, aucune pour les autres types. Sinon des milliers de sets d'un seul jeu.
+- Les sets sont reconstruits avec la série, dans la même transaction que le pool. Seuls les jeux éligibles comptent. La progression est calculée en partant des cartes du joueur (le set « PC » contient plus de 100 000 cartes).
+- Cartes manquantes affichées en silhouette : numéro, nom, année et rareté visibles, pas la jaquette.
+- **Packs thématiques** : un pack thématique est un pack dont le pool est un set (`pack_types.filter = {set: {type, key}}`). 10 packs de départ à 100 éclats (années 80, 90, 2000, RPG, Plateforme, Horreur, N64, PS2, Final Fantasy, FromSoftware). Mêmes taux de drop que le standard ; désactivé automatiquement si son set a moins de 5 cartes.
+- Repli de rareté : si une rareté manque au pool, on essaie en dessous puis au-dessus (avant : en dessous seulement).
+- **Recyclage** (spec §5.6) : Starter 1, Bonus 3, Combo 10, Boss 40, Boss final 150, Hall of Fame 500 éclats par doublon. Un exemplaire de chaque carte et finition est toujours gardé. Les cartes liées ne se recyclent jamais (spec §17.4). Chaque mouvement est tracé dans `currency_ledger`.
+- **Pack standard en plus** : 50 éclats quand le stock gratuit est vide. Les éclats se gagnent uniquement en jouant : aucun argent réel, les cartes obtenues restent libres (règle JONUM respectée).
+
 ## 2026-10-13 — Phase 4 : front de jeu
 
 - Composant carte porté fidèlement depuis le design `pixpedia-carte.html` (6 raretés, variante VIP, carte d'événement, verso), dans `apps/web/src/card/`. Taille de référence 240 × 336, les autres tailles sont obtenues par `transform: scale`.
