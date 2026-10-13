@@ -12,6 +12,7 @@ import {
 
 interface CardViewRow extends Record<string, unknown> {
   card_id: number;
+  number: number;
   game_id: number;
   series_code: string;
   name: string;
@@ -30,7 +31,7 @@ export function toCardView(r: CardViewRow): CardView {
   return {
     cardId: r.card_id,
     gameId: r.game_id,
-    number: cardNumber(r.card_id),
+    number: cardNumber(r.number),
     seriesCode: r.series_code,
     name: r.name,
     year: r.first_release_date ? Number(String(r.first_release_date).slice(0, 4)) : null,
@@ -55,7 +56,7 @@ export function toCardView(r: CardViewRow): CardView {
 export async function loadCardViews(db: Db, cardIds: number[]): Promise<Map<number, CardView>> {
   if (!cardIds.length) return new Map();
   const { rows } = await db.execute<CardViewRow>(sql`
-    select c.id as card_id, g.id as game_id, s.code as series_code, g.name, g.first_release_date::text,
+    select c.id as card_id, c.number, g.id as game_id, s.code as series_code, g.name, g.first_release_date::text,
            g.cover_image_id, c.rarity, c.family, c.atk, c.def, c.hp, c.spd,
            (select coalesce(p.abbreviation, p.name) from game_platforms gp
               join platforms p on p.id = gp.platform_id

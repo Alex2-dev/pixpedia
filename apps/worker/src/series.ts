@@ -71,16 +71,19 @@ export async function printSeries(
   }));
   const population = buildStatsPopulation(statsInputs);
 
-  const newCards = rows.map((g, i) => {
-    const { rarity, score } = rarities.get(g.id) as { rarity: Rarity; score: number };
-    return {
-      gameId: g.id,
-      rarity,
-      scoreAtPrint: score,
-      family: familyFromGenres(g.genre_slugs),
-      ...computeStats(statsInputs[i]!, population),
-    };
-  });
+  const newCards = rows
+    .map((g, i) => {
+      const { rarity, score } = rarities.get(g.id) as { rarity: Rarity; score: number };
+      return {
+        gameId: g.id,
+        rarity,
+        scoreAtPrint: score,
+        family: familyFromGenres(g.genre_slugs),
+        ...computeStats(statsInputs[i]!, population),
+      };
+    })
+    .sort((a, b) => a.gameId - b.gameId)
+    .map((c, i) => ({ ...c, number: i + 1 }));
 
   let pools: PoolSummary[] = [];
   await db.transaction(async (tx) => {
@@ -96,15 +99,38 @@ export async function printSeries(
           .returning();
     const seriesId = s!.id;
 
-    // Série brouillon : on la recalcule entièrement. Le pool pointe sur ces cartes,
-    // on le vide d'abord puis on le reconstruit dans la même transaction.
+    // Série brouillon : les cartes sont mises à jour sur place (id stables, exemplaires des
+    // joueurs conservés). Le pool pointe sur ces cartes : on le vide puis on le reconstruit
+    // dans la même transaction.
     await tx.execute(
       sql`delete from draw_pool where card_id in (select id from cards where series_id = ${seriesId})`,
     );
-    await tx.delete(cards).where(eq(cards.seriesId, seriesId));
     for (let i = 0; i < newCards.length; i += CHUNK) {
-      await tx.insert(cards).values(newCards.slice(i, i + CHUNK).map((c) => ({ ...c, seriesId })));
+      await tx
+        .insert(cards)
+        .values(newCards.slice(i, i + CHUNK).map((c) => ({ ...c, seriesId })))
+        .onConflictDoUpdate({
+          target: [cards.seriesId, cards.gameId],
+          set: {
+            number: sql`excluded.number`,
+            rarity: sql`excluded.rarity`,
+            scoreAtPrint: sql`excluded.score_at_print`,
+            atk: sql`excluded.atk`,
+            def: sql`excluded.def`,
+            hp: sql`excluded.hp`,
+            spd: sql`excluded.spd`,
+            family: sql`excluded.family`,
+          },
+        });
     }
+    // Un jeu sorti du catalogue perd sa carte, sauf si un joueur la possède (spec §3.4) :
+    // elle reste alors dans les classeurs, hors du tirage.
+    await tx.execute(sql`
+      delete from cards c
+      where c.series_id = ${seriesId}
+        and not (c.game_id = any(${sql.param(newCards.map((n) => n.gameId))}::int[]))
+        and not exists (select 1 from user_cards uc where uc.card_id = c.id)
+    `);
 
     // La cote affichée suit le dernier calcul, sans effet sur les raretés figées.
     for (let i = 0; i < newCards.length; i += CHUNK) {

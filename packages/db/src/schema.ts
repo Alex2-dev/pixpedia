@@ -164,6 +164,8 @@ export const cards = pgTable(
     gameId: integer('game_id')
       .notNull()
       .references(() => games.id),
+    /** Numéro dans la série (#0001…), par id IGDB croissant. Figé une fois la série publiée. */
+    number: integer('number').notNull().default(0),
     /** Figée à la création de la carte. */
     rarity: text('rarity').notNull(),
     scoreAtPrint: real('score_at_print').notNull(),

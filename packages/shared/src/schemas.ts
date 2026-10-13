@@ -123,7 +123,7 @@ export interface CardView {
   coverUrl: string | null;
 }
 
-/** Numéro de collection affiché sur la carte. */
-export function cardNumber(cardId: number): string {
-  return `#${String(cardId).padStart(4, '0')}`;
+/** Numéro de collection affiché sur la carte, ex. 655 → « #0655 ». */
+export function cardNumber(number: number): string {
+  return `#${String(number).padStart(4, '0')}`;
 }

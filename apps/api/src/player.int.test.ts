@@ -68,6 +68,7 @@ describe.skipIf(!url)('API joueur (intégration, TEST_DATABASE_URL)', () => {
           .values({
             seriesId: s!.id,
             gameId: id,
+            number: id,
             rarity,
             scoreAtPrint: 0,
             atk: 50,
