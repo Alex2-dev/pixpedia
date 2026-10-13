@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { FAMILY_KEYS, GAME_STATUSES, RARITY_KEYS } from './constants';
+import { FINISHES } from './player';
 
 export const raritySchema = z.enum(RARITY_KEYS);
 export const familySchema = z.enum(FAMILY_KEYS);
@@ -49,3 +50,51 @@ export type GamesSearchResponse = z.infer<typeof gamesSearchResponseSchema>;
 export function igdbCoverUrl(imageId: string, size = 't_cover_big'): string {
   return `https://images.igdb.com/igdb/image/upload/${size}/${imageId}.jpg`;
 }
+
+/* ---------- Comptes (email + mot de passe, 15 ans minimum) ---------- */
+
+export const MIN_AGE = 15;
+
+const emailSchema = z.string().trim().toLowerCase().pipe(z.email()).pipe(z.string().max(254));
+
+export const registerSchema = z.object({
+  username: z
+    .string()
+    .trim()
+    .regex(/^[A-Za-z0-9_-]{3,20}$/, '3 à 20 caractères : lettres, chiffres, _ et -'),
+  email: emailSchema,
+  password: z.string().min(10).max(200),
+  /** Pays déclaré (ISO 3166-1 alpha-2), utilisé plus tard pour les fonctions payantes (spec §17.9). */
+  countryCode: z
+    .string()
+    .trim()
+    .toUpperCase()
+    .regex(/^[A-Z]{2}$/),
+  /** Case « J'ai 15 ans ou plus ». */
+  ageConfirmed: z.literal(true),
+});
+export type RegisterInput = z.infer<typeof registerSchema>;
+
+export const loginSchema = z.object({
+  email: emailSchema,
+  password: z.string().min(1).max(200),
+});
+
+/* ---------- Packs et collection ---------- */
+
+export const openPackSchema = z.object({
+  packTypeId: z.number().int().positive(),
+  idempotencyKey: z.uuid(),
+});
+
+export const finishSchema = z.enum(FINISHES);
+
+export const collectionQuerySchema = z.object({
+  page: z.coerce.number().int().min(1).default(1),
+  pageSize: z.coerce.number().int().min(1).max(100).default(50),
+  rarity: raritySchema.optional(),
+  family: familySchema.optional(),
+  search: z.string().trim().min(1).max(100).optional(),
+  sort: z.enum(['recent', 'rarity', 'name', 'year']).default('recent'),
+});
+export type CollectionQuery = z.infer<typeof collectionQuerySchema>;
