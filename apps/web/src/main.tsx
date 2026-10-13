@@ -28,7 +28,8 @@ function OpenPackRoute() {
 
 createRoot(document.getElementById('root') as HTMLElement).render(
   <StrictMode>
-    <BrowserRouter>
+    {/* En prod, le jeu vit sous /pixpedia/ (VITE_BASE) ; en dev, à la racine. */}
+    <BrowserRouter basename={import.meta.env.BASE_URL.replace(/\/$/, '')}>
       <SessionProvider>
         <Routes>
           <Route element={<Layout />}>

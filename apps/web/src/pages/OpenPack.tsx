@@ -1,5 +1,5 @@
 import { motion, useReducedMotion } from 'motion/react';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { rarityRank, type Rarity } from '@pixpedia/shared';
 import { api, errorMessage, type OpenResult } from '../api';
@@ -8,6 +8,27 @@ import { Card } from '../card/Card';
 import { RARITY_STYLE } from '../card/types';
 import { useSession } from '../session';
 import { useCardWidth } from '../useCardWidth';
+
+export interface OpenPackState {
+  packTypeId: number;
+  /** Payer en éclats un pack standard quand le stock est vide. */
+  useShards: boolean;
+  /** Pack payé en éclats : on ne propose pas d'en rouvrir un directement. */
+  paid: boolean;
+  /**
+   * Clé d'idempotence, créée au clic et gardée dans l'historique du navigateur :
+   * recharger la page rejoue le même tirage au lieu d'ouvrir un nouveau pack.
+   */
+  key: string;
+}
+
+export function openPackState(
+  packTypeId: number,
+  useShards = false,
+  paid = useShards,
+): OpenPackState {
+  return { packTypeId, useShards, paid, key: crypto.randomUUID() };
+}
 
 /** Les raretés Boss et au-dessus ont droit à un éclat à la révélation. */
 const isBig = (r: Rarity) => rarityRank(r) >= rarityRank('boss');
@@ -21,25 +42,21 @@ export function OpenPack() {
   const navigate = useNavigate();
   const { me, setMe, refresh } = useSession();
   const reduce = useReducedMotion();
-  const state = location.state as {
-    packTypeId?: number;
-    useShards?: boolean;
-    paid?: boolean;
-  } | null;
+  const state = location.state as Partial<OpenPackState> | null;
   const packTypeId = state?.packTypeId;
   const useShards = state?.useShards ?? false;
-  const key = useRef(crypto.randomUUID());
+  const key = state?.key;
   const [result, setResult] = useState<OpenResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [revealed, setRevealed] = useState<boolean[]>([]);
   const width = useCardWidth(200, 2);
 
   useEffect(() => {
-    if (!packTypeId) return;
+    if (!packTypeId || !key) return;
     let cancelled = false;
     api<OpenResult>('/packs/open', {
       method: 'POST',
-      body: { packTypeId, idempotencyKey: key.current, useShards },
+      body: { packTypeId, idempotencyKey: key, useShards },
     }).then(
       (r) => {
         if (cancelled) return;
@@ -51,7 +68,7 @@ export function OpenPack() {
     return () => {
       cancelled = true;
     };
-  }, [packTypeId, useShards]);
+  }, [packTypeId, key, useShards]);
 
   // Met à jour le stock affiché dans l'en-tête dès que le tirage est connu.
   useEffect(() => {
@@ -67,7 +84,7 @@ export function OpenPack() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [result]);
 
-  if (!packTypeId) return <Navigate to="/" replace />;
+  if (!packTypeId || !key) return <Navigate to="/" replace />;
 
   if (error) {
     return (
@@ -180,7 +197,7 @@ export function OpenPack() {
                 <button
                   type="button"
                   className="btn"
-                  onClick={() => navigate('/ouverture', { state: { packTypeId, n: Date.now() } })}
+                  onClick={() => navigate('/ouverture', { state: openPackState(packTypeId) })}
                 >
                   Ouvrir un autre pack ({result.packsAvailable})
                 </button>

@@ -30,14 +30,14 @@ export function errorMessage(err: unknown): string {
   return MESSAGES[code] ?? 'Une erreur est survenue.';
 }
 
-/** Appelle l'API via le proxy `/api` (même origine : le cookie de session suit). */
+/** Appelle l'API sur `<base>/api` (même origine : le cookie de session suit). */
 export async function api<T>(
   path: string,
   init: { method?: string; body?: unknown } = {},
 ): Promise<T> {
   let res: Response;
   try {
-    res = await fetch(`/api${path}`, {
+    res = await fetch(`${import.meta.env.BASE_URL}api${path}`, {
       method: init.method ?? 'GET',
       credentials: 'same-origin',
       headers: init.body === undefined ? undefined : { 'content-type': 'application/json' },

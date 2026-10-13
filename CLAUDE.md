@@ -7,7 +7,8 @@ Spec : `docs/spec.md` (v1.5). **Les règles ci-dessous priment sur la spec.** D�
 
 - Monorepo pnpm : `apps/{web,api,worker}`, `packages/{shared,db}`. TypeScript strict, ESLint, Prettier, Vitest.
 - Les paquets internes exportent leur `src/*.ts` directement (pas de build), exécutés via `tsx`.
-- `docker compose up` (pnpm install sur l'hôte avant). Ports hôte : Postgres 5436, API 3014, web 5186.
+- Dev : `docker compose up` (pnpm install sur l'hôte avant). Ports hôte : Postgres 5436, API 3014, web 5186.
+- **Prod en ligne** : https://alex2-server.fr/pixpedia/ via `docker-compose.prod.yml` (secrets `.env.prod`). Mise à jour : `docker compose -f docker-compose.prod.yml up -d --build`. Ne jamais tester avec des comptes dans la base de prod sans les supprimer ensuite.
 - `pnpm test`, `pnpm typecheck`, `pnpm lint`, `pnpm worker:{probe,import,sync,series}`, `pnpm db:{generate,migrate}`.
 - Toute logique de calcul va dans `packages/shared`, en fonctions pures, **avec tests Vitest**.
 - Tests d'intégration API sur la base `pixpedia_test` (`TEST_DATABASE_URL`), regroupés dans `apps/api/src/*.int.test.ts`.

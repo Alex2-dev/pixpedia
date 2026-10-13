@@ -9,18 +9,20 @@ import { sendInvalid } from '../errors';
 export interface AuthRouteOptions {
   db: Db;
   cookieSecure: boolean;
+  /** Chemin du cookie : /pixpedia/ en prod, pour ne pas l'envoyer aux autres sites du domaine. */
+  cookiePath: string;
 }
 
 export const authRoutes: FastifyPluginAsync<AuthRouteOptions> = async (
   app,
-  { db, cookieSecure },
+  { db, cookieSecure, cookiePath },
 ) => {
   const setSessionCookie = (reply: FastifyReply, token: string, expires: Date) =>
     reply.setCookie(SESSION_COOKIE, token, {
       httpOnly: true,
       secure: cookieSecure,
       sameSite: 'lax',
-      path: '/',
+      path: cookiePath,
       expires,
     });
 
@@ -91,7 +93,7 @@ export const authRoutes: FastifyPluginAsync<AuthRouteOptions> = async (
   app.post('/auth/logout', async (req, reply) => {
     const token = req.cookies[SESSION_COOKIE];
     if (token) await deleteSession(db, token);
-    reply.clearCookie(SESSION_COOKIE, { path: '/' });
+    reply.clearCookie(SESSION_COOKIE, { path: cookiePath });
     return reply.code(204).send();
   });
 };

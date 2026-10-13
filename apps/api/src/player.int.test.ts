@@ -203,6 +203,24 @@ describe.skipIf(!url)('API joueur (intégration, TEST_DATABASE_URL)', () => {
       expect((await app.inject({ url: '/me', headers: { cookie } })).statusCode).toBe(401);
     });
 
+    it('pose le cookie de session sur le chemin configuré (/pixpedia/ en prod)', async () => {
+      const prod = await buildApp({
+        db,
+        rateLimit: false,
+        cookieSecure: true,
+        cookiePath: '/pixpedia/',
+      });
+      const res = await prod.inject({ method: 'POST', url: '/auth/register', payload: account });
+      await prod.close();
+      const cookie = res.cookies.find((c) => c.name === 'pixpedia_session');
+      expect(cookie).toMatchObject({
+        path: '/pixpedia/',
+        httpOnly: true,
+        secure: true,
+        sameSite: 'Lax',
+      });
+    });
+
     it('limite les inscriptions à 5 par heure et par IP', async () => {
       const limited = await buildApp({ db, cookieSecure: false });
       const codes: number[] = [];

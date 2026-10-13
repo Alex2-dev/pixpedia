@@ -1,0 +1,68 @@
+# Production de Pixpedia : https://alex2-server.fr/pixpedia/
+#   docker compose -f docker-compose.prod.yml up -d --build
+# Secrets dans .env.prod (jamais commité, modèle : .env.example).
+
+name: pixpedia-prod
+
+x-node: &node
+  image: pixpedia-node:latest
+  build:
+    context: .
+    dockerfile: deploy/Dockerfile
+    target: node
+  env_file: .env.prod
+  restart: unless-stopped
+  networks: [internal]
+
+services:
+  db:
+    image: postgres:16-alpine
+    env_file: .env.prod
+    restart: unless-stopped
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U "$$POSTGRES_USER" -d "$$POSTGRES_DB"']
+      interval: 3s
+      timeout: 3s
+      retries: 20
+    networks: [internal]
+
+  migrate:
+    <<: *node
+    restart: 'no'
+    command: ['node_modules/.bin/tsx', 'packages/db/src/migrate.ts']
+    depends_on:
+      db: { condition: service_healthy }
+
+  api:
+    <<: *node
+    command: ['node_modules/.bin/tsx', 'apps/api/src/server.ts']
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+
+  worker:
+    <<: *node
+    # Synchronisation IGDB chaque nuit à WORKER_SYNC_HOUR (UTC).
+    command: ['node_modules/.bin/tsx', 'apps/worker/src/cli.ts', 'schedule']
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+
+  web:
+    image: pixpedia-web:latest
+    build:
+      context: .
+      dockerfile: deploy/Dockerfile
+      target: web
+    container_name: pixpedia-web
+    restart: unless-stopped
+    depends_on: [api]
+    networks: [internal, alex2-net]
+
+volumes:
+  pgdata:
+
+networks:
+  internal:
+  alex2-net:
+    external: true

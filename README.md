@@ -16,6 +16,30 @@ packages/db      Schéma Drizzle, migrations, client PostgreSQL
 docs/            spec.md, decisions.md
 ```
 
+## En ligne
+
+**https://alex2-server.fr/pixpedia/** — pile de production séparée du dev (`docker-compose.prod.yml`) :
+
+| Service   | Rôle                                                                                                     |
+| --------- | -------------------------------------------------------------------------------------------------------- |
+| `db`      | PostgreSQL 16 de production (volume `pixpedia-prod_pgdata`, non exposé)                                  |
+| `migrate` | Applique les migrations au démarrage                                                                     |
+| `api`     | API Fastify (sans rechargement à chaud)                                                                  |
+| `worker`  | Sync IGDB chaque nuit à `WORKER_SYNC_HOUR` (3 h UTC)                                                     |
+| `web`     | Conteneur `pixpedia-web` : Nginx qui sert le front statique sous `/pixpedia/` et relaie `/pixpedia/api/` |
+
+Le Nginx du serveur (`nginx-proxy`, `/mnt/docker-volumes/nginx/conf.d/alex2-server.conf`) transmet `/pixpedia/` à `pixpedia-web`, en n'acceptant que les IP de Cloudflare : la limitation de débit de l'API s'appuie sur `CF-Connecting-IP`. Le cookie de session est limité au chemin `/pixpedia/`.
+
+Secrets de prod dans `.env.prod` (jamais commité, même modèle que `.env.example`, plus `COOKIE_PATH=/pixpedia/`).
+
+```bash
+# Mettre à jour la prod après des changements
+docker compose -f docker-compose.prod.yml up -d --build
+
+# Lancer une commande du worker en prod
+docker compose -f docker-compose.prod.yml exec worker node_modules/.bin/tsx apps/worker/src/cli.ts sync
+```
+
 ## Installation
 
 Prérequis : Node ≥ 22.9, Docker avec Compose, pnpm (via corepack : `corepack enable pnpm`).

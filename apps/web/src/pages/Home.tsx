@@ -4,6 +4,7 @@ import { RARITIES, RARITY_KEYS } from '@pixpedia/shared';
 import { api, type PackType, type PacksResponse } from '../api';
 import { CardBack } from '../card/fronts';
 import { useSession } from '../session';
+import { openPackState } from './OpenPack';
 import { formatCountdown } from '../time';
 
 function Landing() {
@@ -96,7 +97,7 @@ function PackHome() {
   const canOpen = me.packsAvailable > 0 && standard;
   /** `paid` : pack payé en éclats, l'écran d'ouverture ne propose pas d'en rouvrir un. */
   const go = (packTypeId: number, useShards = false, paid = useShards) =>
-    navigate('/ouverture', { state: { packTypeId, useShards, paid } });
+    navigate('/ouverture', { state: openPackState(packTypeId, useShards, paid) });
 
   return (
     <section className="pack-home">

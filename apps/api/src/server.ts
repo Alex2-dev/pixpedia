@@ -13,6 +13,7 @@ const app = await buildApp(
     db,
     corsOrigins,
     cookieSecure: process.env.COOKIE_SECURE !== 'false',
+    cookiePath: process.env.COOKIE_PATH ?? '/',
     pack: {
       max: Number(process.env.PACK_MAX ?? 10),
       regenMs: Number(process.env.PACK_REGEN_MINUTES ?? 5) * 60_000,

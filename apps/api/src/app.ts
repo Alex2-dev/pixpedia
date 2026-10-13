@@ -6,6 +6,7 @@ import { sql } from 'drizzle-orm';
 import type { Db } from '@pixpedia/db';
 import { PACK_MAX, PACK_REGEN_MINUTES } from '@pixpedia/shared';
 import { authPlugin } from './auth/plugin';
+import { clientIp } from './client-ip';
 import { authRoutes } from './routes/auth';
 import { gamesRoutes } from './routes/games';
 import { playerRoutes } from './routes/player';
@@ -17,6 +18,8 @@ export interface AppDeps {
   corsOrigins?: string[];
   /** false seulement en dev HTTP hors localhost. */
   cookieSecure?: boolean;
+  /** Chemin du cookie de session (`/` par défaut). */
+  cookiePath?: string;
   /** Désactivé dans les tests. */
   rateLimit?: boolean;
   pack?: PackConfig;
@@ -30,7 +33,7 @@ export async function buildApp(deps: AppDeps, opts: FastifyServerOptions = {}) {
   await app.register(cookie);
   // Sans le plugin (tests), les limites déclarées par les routes sont simplement ignorées.
   if (deps.rateLimit !== false) {
-    await app.register(rateLimit, { global: false, enableDraftSpec: true });
+    await app.register(rateLimit, { global: false, enableDraftSpec: true, keyGenerator: clientIp });
   }
   await app.register(authPlugin, { db: deps.db });
 
@@ -45,7 +48,11 @@ export async function buildApp(deps: AppDeps, opts: FastifyServerOptions = {}) {
   });
 
   await app.register(gamesRoutes(deps.db));
-  await app.register(authRoutes, { db: deps.db, cookieSecure: deps.cookieSecure ?? true });
+  await app.register(authRoutes, {
+    db: deps.db,
+    cookieSecure: deps.cookieSecure ?? true,
+    cookiePath: deps.cookiePath ?? '/',
+  });
   await app.register(setsRoutes, { db: deps.db });
   await app.register(playerRoutes, {
     db: deps.db,

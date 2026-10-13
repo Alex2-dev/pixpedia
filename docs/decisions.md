@@ -2,6 +2,16 @@
 
 Décisions prises en cours de développement, en complément de la spec (`spec.md`). Les plus récentes en premier.
 
+## 2026-10-13 — Mise en ligne sur alex2-server.fr/pixpedia
+
+- Pile de production séparée du dev : base dédiée (catalogue copié depuis le dev, sans aucun compte), API sans rechargement à chaud, front en build statique servi par Nginx. Le serveur Vite de dev n'est jamais exposé.
+- Front construit avec `VITE_BASE=/pixpedia/` : routes, API (`/pixpedia/api`), manifeste et service worker sous ce chemin. En dev, tout reste à la racine.
+- L'origine `/pixpedia/` n'accepte que Cloudflare (`cloudflare-allow.inc`), ce qui rend `CF-Connecting-IP` fiable pour limiter le débit par joueur ; sinon tous les joueurs partageraient les IP de Cloudflare.
+- Cookie de session limité à `/pixpedia/` : le domaine héberge d'autres applications qui ne doivent pas le recevoir.
+- Syncs IGDB décalées (dev 4 h, prod 3 h UTC) pour ne jamais dépasser 4 requêtes/s à deux.
+- Correctif trouvé en ligne : recharger la page d'ouverture ouvrait un nouveau pack. La clé d'idempotence est maintenant créée au clic et gardée dans l'historique du navigateur.
+- À faire avant d'ouvrir largement (spec §21.1) : mentions légales, politique de confidentialité, CGU, suppression de compte.
+
 ## 2026-10-13 — Phase 5 : sets, packs thématiques, éclats
 
 - **Sets** sur 8 dimensions, à la demande de l'équipe : plateforme, décennie, année, genre, thème, développeur, éditeur, franchise. Une carte compte dans tous ses sets.
