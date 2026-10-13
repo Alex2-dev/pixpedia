@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { FAMILY_KEYS, GAME_STATUSES, RARITY_KEYS } from './constants';
-import { FINISHES } from './player';
+import { FINISHES } from './finishes';
 import { SET_TYPE_KEYS } from './progression';
 
 export const raritySchema = z.enum(RARITY_KEYS);
@@ -118,6 +118,7 @@ export const collectionQuerySchema = z.object({
   pageSize: z.coerce.number().int().min(1).max(100).default(50),
   rarity: raritySchema.optional(),
   family: familySchema.optional(),
+  finish: finishSchema.optional(),
   search: z.string().trim().min(1).max(100).optional(),
   sort: z.enum(['recent', 'rarity', 'name', 'year']).default('recent'),
 });

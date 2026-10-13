@@ -1,4 +1,5 @@
 import { RARITY_KEYS, rarityRank, type Rarity } from './constants';
+import { canRecycle, type Finish } from './finishes';
 
 export const SET_TYPE_KEYS = [
   'platform',
@@ -54,8 +55,14 @@ export function recycleValue(rarity: Rarity, copies: number): number {
  * Exemplaires recyclables d'une ligne de collection : on garde toujours un exemplaire,
  * et une carte liée ne se recycle jamais, sinon elle redeviendrait un pack de cartes libres (spec §17.4).
  */
-export function recyclableCopies(row: { quantity: number; isBound: boolean }): number {
-  return row.isBound ? 0 : Math.max(0, row.quantity - 1);
+export function recyclableCopies(row: {
+  quantity: number;
+  isBound: boolean;
+  finish?: Finish;
+}): number {
+  return canRecycle({ finish: row.finish ?? 'normal', isBound: row.isBound })
+    ? Math.max(0, row.quantity - 1)
+    : 0;
 }
 
 /**

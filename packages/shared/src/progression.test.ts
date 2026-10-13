@@ -43,6 +43,12 @@ describe('recyclage des doublons (spec §5.6)', () => {
   it('ne recycle jamais une carte liée (spec §17.4)', () => {
     expect(recyclableCopies({ quantity: 5, isBound: true })).toBe(0);
   });
+
+  it('ne recycle jamais une Édition Arène', () => {
+    expect(recyclableCopies({ quantity: 5, isBound: true, finish: 'arena' })).toBe(0);
+    expect(recyclableCopies({ quantity: 5, isBound: false, finish: 'arena' })).toBe(0);
+    expect(recyclableCopies({ quantity: 3, isBound: false, finish: 'holo' })).toBe(2);
+  });
 });
 
 describe('rarityFallbackOrder', () => {

@@ -1,4 +1,4 @@
-import { getRevealAnimation, rarityRank } from '@pixpedia/shared';
+import { REVEAL_STEP_MS, getRevealAnimation, rarityRank } from '@pixpedia/shared';
 import { Card } from '../../card/Card';
 import { DropBack } from '../../components/drop/drops/shared';
 import { RARITY_STYLE } from '../../card/types';
@@ -32,7 +32,8 @@ export function RevealStage({
   onTap,
   onRevealAll,
 }: RevealStageProps) {
-  const anim = getRevealAnimation(item.rarity);
+  const steps = getRevealAnimation(item.rarity);
+  const flipMs = REVEAL_STEP_MS[steps[0]!];
   const style = RARITY_STYLE[item.rarity];
   const halo = rarityRank(item.rarity) >= rarityRank('combo');
   const rare = rarityRank(item.rarity) >= rarityRank('boss');
@@ -63,7 +64,7 @@ export function RevealStage({
             )}
             <div
               className={`op-rv-front${afterDrop ? ' op-after-drop' : ''}`}
-              style={{ animationDuration: `${anim.kind === 'drop' ? 400 : anim.durationMs}ms` }}
+              style={{ animationDuration: `${flipMs}ms` }}
             >
               <Card data={item.card} width={240} tilt={false} onActivate={() => {}} />
             </div>

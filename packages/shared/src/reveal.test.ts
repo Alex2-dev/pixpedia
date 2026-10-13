@@ -1,21 +1,41 @@
 import { describe, expect, it } from 'vitest';
+import { RARITY_KEYS } from './constants';
+import { FINISHES } from './finishes';
 import { DEFAULT_PACK_ODDS } from './packs';
-import { formatChance, getRevealAnimation, perCardChance } from './reveal';
+import { REVEAL_STEP_MS, formatChance, getRevealAnimation, perCardChance } from './reveal';
 
-describe('getRevealAnimation', () => {
-  it('retournement simple de 0,4 s pour Starter et Bonus', () => {
-    expect(getRevealAnimation('starter')).toEqual({ kind: 'flip', durationMs: 400 });
-    expect(getRevealAnimation('bonus')).toEqual({ kind: 'flip', durationMs: 400 });
+describe('getRevealAnimation (rareté × finition)', () => {
+  it('exemples de la consigne', () => {
+    expect(getRevealAnimation('starter', 'normal')).toEqual(['flip']);
+    expect(getRevealAnimation('combo', 'normal')).toEqual(['flip-combo']);
+    expect(getRevealAnimation('boss', 'holo')).toEqual(['flip', 'drop-boss', 'finish-holo']);
+    expect(getRevealAnimation('hof', 'fullart')).toEqual(['flip', 'drop-hof', 'finish-fullart']);
   });
 
-  it('retournement avec halo bleu de 0,5 s pour Combo', () => {
-    expect(getRevealAnimation('combo')).toEqual({ kind: 'flip-halo', durationMs: 500 });
+  it('couvre toutes les combinaisons : retournement → drop (Boss+) → finition', () => {
+    const drop = { boss: 'drop-boss', final: 'drop-final', hof: 'drop-hof' } as const;
+    for (const rarity of RARITY_KEYS) {
+      for (const finish of FINISHES) {
+        const steps = getRevealAnimation(rarity, finish);
+        expect(steps[0]).toBe(rarity === 'combo' ? 'flip-combo' : 'flip');
+        expect(steps.includes(drop[rarity as keyof typeof drop])).toBe(rarity in drop);
+        expect(steps.at(-1)).toBe(finish === 'normal' ? steps.at(-1) : `finish-${finish}`);
+        expect(steps).toHaveLength(1 + (rarity in drop ? 1 : 0) + (finish === 'normal' ? 0 : 1));
+      }
+    }
   });
 
-  it('drop plein écran pour Boss, Boss final et Hall of Fame', () => {
-    expect(getRevealAnimation('boss')).toEqual({ kind: 'drop', drop: 'boss', durationMs: 1400 });
-    expect(getRevealAnimation('final')).toEqual({ kind: 'drop', drop: 'final', durationMs: 3000 });
-    expect(getRevealAnimation('hof')).toEqual({ kind: 'drop', drop: 'hof', durationMs: 4500 });
+  it('donne une durée à chaque étape', () => {
+    expect(REVEAL_STEP_MS).toMatchObject({
+      flip: 400,
+      'flip-combo': 500,
+      'drop-boss': 1400,
+      'drop-final': 3000,
+      'drop-hof': 4500,
+      'finish-holo': 1700,
+      'finish-fullart': 3000,
+      'finish-arena': 2100,
+    });
   });
 });
 

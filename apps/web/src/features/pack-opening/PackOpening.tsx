@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type CSSProperties } from 'react';
-import { getRevealAnimation, rarityRank, type Rarity } from '@pixpedia/shared';
+import { dropOf, getRevealAnimation, rarityRank, type Rarity } from '@pixpedia/shared';
 import { DropOverlay } from '../../components/drop/DropOverlay';
 import type { DropCue } from '../../components/drop/useDropSequence';
 import { useStageScale } from '../../components/drop/useStageScale';
@@ -69,7 +69,7 @@ export function PackOpening(props: PackOpeningProps) {
   const tap = () => {
     if (!item) return;
     if (!up) {
-      if (getRevealAnimation(item.rarity).kind === 'drop') setDropOpen(true);
+      if (dropOf(getRevealAnimation(item.rarity))) setDropOpen(true);
       else setUp(true);
       return;
     }

@@ -40,6 +40,7 @@
 21. [Réglementation et obligations](#21-réglementation-et-obligations)
 22. [Parrainage](#22-parrainage)
 23. [Équilibrage des combats](#23-équilibrage-des-combats)
+24. [Finitions et éditions](#24-finitions-et-éditions)
 
 ---
 
@@ -1750,4 +1751,62 @@ Tableau de bord interne, mis à jour chaque jour :
 - avantage du premier joueur.
 
 Seuils d'alerte : une carte au-dessus de 55 % de victoires sur 500 matchs, une famille au-dessus de 53 %, ou un premier joueur au-dessus de 54 %. Les corrections sont publiées dans des notes de saison, jamais en cours de saison sauf bug grave.
+
+---
+
+## 24. Finitions et éditions
+
+> Ajouté le 13 octobre 2026. Remplace les finitions de la section 5.2 (« full art 1 sur 200 », « finition d'événement »). Référence visuelle : `docs/design/pixpedia-cartes-animations.html`.
+
+### 24.1 Principe
+
+Une finition est portée par l'**exemplaire possédé**, jamais par la carte du catalogue. Elle ne change **ni la rareté ni les stats** : c'est uniquement de l'apparence. Une même carte peut être possédée en plusieurs finitions ; les doublons se comptent par finition.
+
+| Finition | Obtention | Taux de départ | Règles |
+|---|---|---|---|
+| **Holo** | Tirage en pack, indépendant de la rareté | 1 sur 20 | Comme la carte de base |
+| **Full art** | Tirage plus rare, ou récompense de collection terminée | 1 sur 100 | Comme la carte de base |
+| **Édition Arène** | Gratuite pendant un événement (pronostics, missions), sur un jeu de l'événement | Défini par événement | Toujours liée au compte : jamais recyclable, échangeable ni vendable |
+
+Les taux sont en configuration (`pack_types.finish_odds`), jamais en dur, et publiés avec les taux de drop.
+
+L'**Édition Arène** remplace la « finition d'événement » de la section 5.2. Elle porte le nom de l'événement (`event_id`) et sa date d'obtention.
+
+Les variantes **VIP** (pack abonné) et **Événement** (cartes d'équipe) sont des éditions liées, avec leur dos teinté.
+
+### 24.2 Règle JONUM
+
+Non négociable : **pack payé en argent réel + hasard = carte liée**, quelle que soit la finition. Les cartes du pack VIP sont liées. Un type de pack qui lie ses cartes le déclare (`pack_types.binds_cards`).
+
+### 24.3 Dos
+
+| Dos | Quand |
+|---|---|
+| Standard | Starter, Bonus, Combo. **Seul dos utilisé pendant l'ouverture de packs** |
+| Boss | Créneaux, triple crâne, pierre violette |
+| Boss final | Couronne, braises, flammes pixel animées, ruban |
+| Hall of Fame | Holo animé, ciel étoilé, trophée, lauriers |
+| Holo | Dos standard sous une feuille holo |
+| Full art | Paysage pixel pleine carte, logo au centre |
+| Arène | Scène de nuit, projecteurs, LED, nom de l'événement |
+| VIP / Événement | Dos standard teinté avec son bandeau |
+
+Priorité quand plusieurs dos s'appliquent : **Arène > Full art > Holo > VIP / Événement > rareté > standard**.
+
+### 24.4 Règle anti-fuite
+
+Pendant l'ouverture de packs, **rien ne trahit la rareté ni la finition avant le toucher** : toutes les cartes face cachée ont le dos standard, sans reflet, couleur, halo ni tremblement. Le recto n'est pas rendu tant que la carte est face cachée, et l'API n'envoie la rareté et la finition d'une carte qu'à sa révélation.
+
+Les dos spéciaux ne s'affichent que sur une carte révélée : classeur, fiche catalogue, vitrine de profil.
+
+### 24.5 Révélation
+
+Ordre : retournement → drop de rareté (Boss et plus) → effet de finition (Holo, Full art, Arène).
+
+| Animation | Durée |
+|---|---|
+| Retournement simple (Starter, Bonus) | 0,4 s |
+| Retournement + halo bleu (Combo) | 0,5 s |
+| Drop Boss / Boss final / Hall of Fame | ≈ 1,4 s / 3 s / 4,5 s |
+| Finition Holo / Full art / Arène | ≈ 1,7 s / 3 s / 2,1 s |
 

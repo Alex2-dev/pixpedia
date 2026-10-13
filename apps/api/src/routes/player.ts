@@ -2,7 +2,7 @@ import { randomInt } from 'node:crypto';
 import { and, asc, desc, eq, ilike, sql, type SQL } from 'drizzle-orm';
 import type { FastifyPluginAsync } from 'fastify';
 import { z } from 'zod';
-import { cards, games, packTypes, userCards, users, type Db } from '@pixpedia/db';
+import { cards, events, games, packTypes, userCards, users, type Db } from '@pixpedia/db';
 import {
   EXTRA_STANDARD_PACK_SHARDS,
   collectionQuerySchema,
@@ -83,6 +83,8 @@ export const playerRoutes: FastifyPluginAsync<PlayerRouteOptions> = async (app, 
         name: packTypes.name,
         cost: packTypes.cost,
         odds: packTypes.odds,
+        finishOdds: packTypes.finishOdds,
+        bindsCards: packTypes.bindsCards,
       })
       .from(packTypes)
       .where(eq(packTypes.isActive, true))
@@ -159,6 +161,7 @@ export const playerRoutes: FastifyPluginAsync<PlayerRouteOptions> = async (app, 
     const filters: SQL[] = [eq(userCards.userId, req.user!.id)];
     if (q.rarity) filters.push(eq(cards.rarity, q.rarity));
     if (q.family) filters.push(eq(cards.family, q.family));
+    if (q.finish) filters.push(eq(userCards.finish, q.finish));
     if (q.search) filters.push(ilike(games.name, `%${escapeLike(q.search)}%`));
     const where = and(...filters);
 
@@ -173,9 +176,11 @@ export const playerRoutes: FastifyPluginAsync<PlayerRouteOptions> = async (app, 
     const [rows, [total]] = await Promise.all([
       db
         .select({
+          copyId: userCards.id,
           cardId: userCards.cardId,
           finish: userCards.finish,
           isBound: userCards.isBound,
+          eventName: events.name,
           quantity: userCards.quantity,
           isFavorite: userCards.isFavorite,
           firstObtainedAt: userCards.firstObtainedAt,
@@ -183,6 +188,7 @@ export const playerRoutes: FastifyPluginAsync<PlayerRouteOptions> = async (app, 
         .from(userCards)
         .innerJoin(cards, eq(cards.id, userCards.cardId))
         .innerJoin(games, eq(games.id, cards.gameId))
+        .leftJoin(events, eq(events.id, userCards.eventId))
         .where(where)
         .orderBy(...orderBy, asc(userCards.cardId), asc(userCards.finish))
         .limit(q.pageSize)
@@ -227,13 +233,17 @@ export const playerRoutes: FastifyPluginAsync<PlayerRouteOptions> = async (app, 
     const owned = req.user
       ? await db
           .select({
+            copyId: userCards.id,
             finish: userCards.finish,
             isBound: userCards.isBound,
             quantity: userCards.quantity,
             firstObtainedAt: userCards.firstObtainedAt,
+            eventName: events.name,
           })
           .from(userCards)
+          .leftJoin(events, eq(events.id, userCards.eventId))
           .where(and(eq(userCards.userId, req.user.id), eq(userCards.cardId, cardId)))
+          .orderBy(asc(userCards.firstObtainedAt))
       : [];
     if (game!.status !== 'eligible' && owned.length === 0) {
       return reply.code(404).send({ error: 'card_not_found' });

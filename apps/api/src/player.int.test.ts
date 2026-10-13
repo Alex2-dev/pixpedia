@@ -46,7 +46,7 @@ describe.skipIf(!url)('API joueur (intégration, TEST_DATABASE_URL)', () => {
       migrationsFolder: fileURLToPath(new URL('../../../packages/db/drizzle', import.meta.url)),
     });
     await db.execute(
-      sql`truncate users, draw_pool, draw_pool_counts, pack_types, cards, series, games restart identity cascade`,
+      sql`truncate users, events, draw_pool, draw_pool_counts, pack_types, cards, series, games restart identity cascade`,
     );
 
     let id = 0;
@@ -632,6 +632,111 @@ describe.skipIf(!url)('API joueur (intégration, TEST_DATABASE_URL)', () => {
       ).json();
       expect(later.drops).toEqual([]);
       expect((await app.inject({ url: '/drops/hof?since=hier' })).statusCode).toBe(400);
+    });
+  });
+
+  describe('finitions et éditions', () => {
+    const openType = (cookie: string, id: number) =>
+      app.inject({
+        method: 'POST',
+        url: '/packs/open',
+        headers: { cookie },
+        payload: { packTypeId: id, idempotencyKey: randomUUID() },
+      });
+
+    async function packType(code: string, finishOdds: object, bindsCards: boolean) {
+      await db.execute(sql`delete from pack_types where code = ${code}`);
+      const [t] = (
+        await db.execute<{ id: number }>(sql`
+          insert into pack_types (code, name, cost, odds, finish_odds, binds_cards)
+          values (${code}, ${code}, 100, ${JSON.stringify(DEFAULT_PACK_ODDS)}::jsonb,
+                  ${JSON.stringify(finishOdds)}::jsonb, ${bindsCards})
+          returning id`)
+      ).rows;
+      await db.execute(sql`insert into draw_pool select ${t!.id}, rarity, idx, card_id from draw_pool
+        where pack_type_id = ${packTypeId}`);
+      await db.execute(sql`insert into draw_pool_counts select ${t!.id}, rarity, n from draw_pool_counts
+        where pack_type_id = ${packTypeId}`);
+      return t!.id;
+    }
+
+    it('tire les finitions avec les taux du type de pack', async () => {
+      const cookie = await register();
+      await db.execute(sql`update users set shards = 1000`);
+      // Le hasard renvoie 0 : avec ces taux, toutes les cartes sortent en holo.
+      const allHolo = await packType('test-holo', { holo: 1, fullart: 0 }, false);
+      const res = (await openType(cookie, allHolo)).json();
+      expect(res.cards.map((c: { finish: string }) => c.finish)).toEqual(Array(5).fill('holo'));
+      const none = await packType('test-normal', { holo: 0, fullart: 0 }, false);
+      const res2 = (await openType(cookie, none)).json();
+      expect(res2.cards.map((c: { finish: string }) => c.finish)).toEqual(Array(5).fill('normal'));
+      const packs = (await app.inject({ url: '/packs' })).json().packs;
+      expect(packs.find((p: { code: string }) => p.code === 'standard').finishOdds).toEqual({
+        holo: 0.05,
+        fullart: 0.01,
+      });
+    });
+
+    it('un pack qui lie ses cartes les lie toutes, quelle que soit la finition (JONUM)', async () => {
+      const cookie = await register();
+      await db.execute(sql`update users set shards = 1000`);
+      const bound = await packType('test-vip', { holo: 1, fullart: 0 }, true);
+      await openType(cookie, bound);
+      const rows = await db.execute(
+        sql`select bool_and(is_bound) b, count(*)::int n from user_cards`,
+      );
+      expect(rows.rows[0]).toEqual({ b: true, n: 5 });
+      // Rien de recyclable : les cartes liées n'entrent jamais dans les doublons.
+      await openType(cookie, bound);
+      const dup = (await app.inject({ url: '/collection/duplicates', headers: { cookie } })).json();
+      expect(dup).toEqual({ copies: 0, shards: 0 });
+    });
+
+    it('une Édition Arène est toujours liée et rattachée à un événement', async () => {
+      const cookie = await register();
+      const card = (await open(cookie)).json().cards[0];
+      await db.execute(sql`delete from events where code = 'worlds-2026'`);
+      const [ev] = (
+        await db.execute<{ id: number }>(sql`
+          insert into events (code, name, starts_at, ends_at)
+          values ('worlds-2026', 'Worlds 2026', now(), now() + interval '7 days') returning id`)
+      ).rows;
+      await expect(
+        db.execute(sql`insert into user_cards (user_id, card_id, finish, is_bound, event_id)
+          values (1, ${card.cardId}, 'arena', false, ${ev!.id})`),
+      ).rejects.toThrow();
+      await expect(
+        db.execute(sql`insert into user_cards (user_id, card_id, finish, is_bound)
+          values (1, ${card.cardId}, 'arena', true)`),
+      ).rejects.toThrow();
+      await db.execute(sql`insert into user_cards (user_id, card_id, finish, is_bound, event_id, quantity)
+        values (1, ${card.cardId}, 'arena', true, ${ev!.id}, 3)`);
+
+      // Jamais recyclable, même en plusieurs exemplaires.
+      const dup = (await app.inject({ url: '/collection/duplicates', headers: { cookie } })).json();
+      expect(dup.copies).toBe(0);
+      const recycle = await app.inject({
+        method: 'POST',
+        url: '/cards/recycle',
+        headers: { cookie },
+        payload: { cardId: card.cardId, finish: 'arena', quantity: 1 },
+      });
+      expect(recycle.statusCode).toBe(409);
+
+      // Filtre « Finition » du classeur, avec le nom de l'événement.
+      const arena = (
+        await app.inject({ url: '/collection?finish=arena', headers: { cookie } })
+      ).json();
+      expect(arena.total).toBe(1);
+      expect(arena.cards[0]).toMatchObject({
+        finish: 'arena',
+        isBound: true,
+        eventName: 'Worlds 2026',
+      });
+      const detail = (
+        await app.inject({ url: `/cards/${card.cardId}`, headers: { cookie } })
+      ).json();
+      expect(detail.owned.map((o: { finish: string }) => o.finish)).toContain('arena');
     });
   });
 

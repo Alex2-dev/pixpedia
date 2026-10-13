@@ -1,4 +1,4 @@
-import { and, eq, gt, sql } from 'drizzle-orm';
+import { and, eq, gt, ne, sql } from 'drizzle-orm';
 import { cards, currencyLedger, userCards, users, type Db } from '@pixpedia/db';
 import { recyclableCopies, recycleValue, type Rarity } from '@pixpedia/shared';
 import { ApiError } from '../errors';
@@ -17,7 +17,7 @@ export interface RecycleResult {
 
 /**
  * Recycle des doublons en éclats (spec §5.6), dans une transaction tracée dans `currency_ledger`.
- * Seules les cartes libres se recyclent, et un exemplaire est toujours gardé.
+ * Seules les cartes libres se recyclent (jamais une Édition Arène), et un exemplaire est toujours gardé.
  */
 export async function recycle(
   db: Db,
@@ -41,6 +41,7 @@ export async function recycle(
             eq(userCards.cardId, item.cardId),
             eq(userCards.finish, item.finish),
             eq(userCards.isBound, false),
+            ne(userCards.finish, 'arena'),
           ),
         );
       if (!row || item.quantity > recyclableCopies({ quantity: row.quantity, isBound: false })) {
@@ -87,7 +88,12 @@ export async function listDuplicates(db: Db, userId: number) {
     .from(userCards)
     .innerJoin(cards, eq(cards.id, userCards.cardId))
     .where(
-      and(eq(userCards.userId, userId), eq(userCards.isBound, false), gt(userCards.quantity, 1)),
+      and(
+        eq(userCards.userId, userId),
+        eq(userCards.isBound, false),
+        ne(userCards.finish, 'arena'),
+        gt(userCards.quantity, 1),
+      ),
     );
   const items = rows.map((r) => ({
     cardId: r.cardId,

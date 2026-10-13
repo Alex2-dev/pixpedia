@@ -3,7 +3,9 @@ import { Link, useParams } from 'react-router-dom';
 import {
   DEFAULT_PACK_ODDS,
   formatChance,
+  dropOf,
   getRevealAnimation,
+  normalizeFinish,
   perCardChance,
   recycleValue,
   type SlotOdds,
@@ -19,7 +21,9 @@ import { useReducedMotionPref } from '../useReducedMotion';
 const FINISH_LABEL: Record<string, string> = {
   normal: 'Normale',
   holo: 'Holo',
+  fullart: 'Full art',
   full_art: 'Full art',
+  arena: 'Édition Arène',
 };
 
 export function CardDetail() {
@@ -75,9 +79,10 @@ export function CardDetail() {
   if (!card) return <p className="muted center">Chargement…</p>;
 
   const best =
-    card.owned.find((o) => o.finish === 'full_art') ?? card.owned.find((o) => o.finish === 'holo');
+    card.owned.find((o) => normalizeFinish(o.finish) === 'fullart') ??
+    card.owned.find((o) => o.finish === 'holo');
   const cardData = toCardData({ ...card, finish: best?.finish });
-  const hasDrop = getRevealAnimation(card.rarity).kind === 'drop';
+  const hasDrop = dropOf(getRevealAnimation(card.rarity)) !== null;
   // Date du premier exemplaire, toutes finitions confondues.
   const firstDrawn = card.owned.length
     ? new Date(Math.min(...card.owned.map((o) => new Date(o.firstObtainedAt).getTime())))

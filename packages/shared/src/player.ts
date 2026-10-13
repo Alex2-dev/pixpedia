@@ -34,14 +34,3 @@ export function computePackStock(
   const updatedAt = new Date(stock.updatedAt.getTime() + gained * opts.regenMs);
   return { available, updatedAt, nextPackAt: new Date(updatedAt.getTime() + opts.regenMs) };
 }
-
-export const FINISHES = ['normal', 'holo', 'full_art'] as const;
-export type Finish = (typeof FINISHES)[number];
-
-/** Finition tirée à chaque carte, indépendante de la rareté : holo 1/20, full art 1/200 (spec §5.2). */
-export function rollFinish(randomInt: (max: number) => number): Finish {
-  const r = randomInt(200);
-  if (r === 0) return 'full_art';
-  if (r <= 10) return 'holo';
-  return 'normal';
-}

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { computePackStock, rollFinish } from './player';
+import { computePackStock } from './player';
 
 const MIN = 60_000;
 const opts = { max: 10, regenMs: 5 * MIN };
@@ -33,25 +33,5 @@ describe('computePackStock (recharge paresseuse, spec §8.2)', () => {
 
   it('un stock déjà plein reste plein', () => {
     expect(computePackStock({ available: 10, updatedAt: t0 }, at(1), opts).nextPackAt).toBeNull();
-  });
-});
-
-describe('rollFinish (holo 1/20, full art 1/200)', () => {
-  it('respecte les probabilités sur toutes les valeurs possibles', () => {
-    const counts: Record<string, number> = {};
-    for (let i = 0; i < 200; i++) {
-      const f = rollFinish(() => i);
-      counts[f] = (counts[f] ?? 0) + 1;
-    }
-    expect(counts).toEqual({ full_art: 1, holo: 10, normal: 189 });
-  });
-
-  it('demande un entier dans [0, 200)', () => {
-    const maxes: number[] = [];
-    rollFinish((m) => {
-      maxes.push(m);
-      return 199;
-    });
-    expect(maxes).toEqual([200]);
   });
 });

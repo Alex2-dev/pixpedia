@@ -11,3 +11,4 @@ export * from './packs';
 export * from './player';
 export * from './progression';
 export * from './reveal';
+export * from './finishes';

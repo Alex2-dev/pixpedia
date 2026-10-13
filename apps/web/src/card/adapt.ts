@@ -1,4 +1,4 @@
-import type { CardView, Finish } from '@pixpedia/shared';
+import { normalizeFinish, type CardView, type Finish } from '@pixpedia/shared';
 import type { CardData } from './types';
 
 /** Champs propres à un exemplaire possédé ou tiré. */
@@ -7,8 +7,6 @@ export interface CopyInfo {
   isNew?: boolean;
   isBound?: boolean;
 }
-
-const FINISHES: readonly string[] = ['normal', 'holo', 'full_art'];
 
 /** Convertit la vue carte de l'API vers les données du composant (PV = hp, VIT = spd). */
 export function toCardData(v: CardView & CopyInfo): CardData {
@@ -26,8 +24,8 @@ export function toCardData(v: CardView & CopyInfo): CardData {
     cover: v.coverUrl,
     isNew: v.isNew ?? false,
     isBound: v.isBound ?? false,
-    // Une finition d'événement inconnue du design s'affiche comme normale.
-    finish: v.finish && FINISHES.includes(v.finish) ? (v.finish as Finish) : 'normal',
+    // Ancien nom « full_art » lu comme « fullart » ; une finition inconnue s'affiche normale.
+    finish: normalizeFinish(v.finish),
     variant: 'normal',
   };
 }

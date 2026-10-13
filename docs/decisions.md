@@ -2,6 +2,18 @@
 
 Décisions prises en cours de développement, en complément de la spec (`spec.md`). Les plus récentes en premier.
 
+## 2026-10-13 — Finitions, éditions et anti-fuite (étape 1 : données et règles)
+
+- Finitions sur l'exemplaire (`user_cards.finish`) : `normal | holo | fullart | arena`. L'ancien `full_art` est renommé en base par la migration, et encore lu par le front.
+- `user_cards` a maintenant un identifiant propre (`id`) ; l'unicité porte sur carte + finition + liaison + événement (`coalesce(event_id, 0)`), pour qu'une même carte gagnée en Arène à deux événements reste en deux exemplaires distincts.
+- La base garantit qu'une Édition Arène est liée et rattachée à un événement (contrainte `user_cards_arena_check`). Recyclage, échange et vente refusés pour l'Arène dans `shared` (`canRecycle`, `canTrade`, `canSell`) et dans l'API.
+- Taux de finition en configuration (`pack_types.finish_odds`, holo 0,05 et full art 0,01 par défaut), publiés par `GET /packs`. Full art passe de 1 sur 200 à 1 sur 100.
+- `pack_types.binds_cards` : un type de pack lie toutes ses cartes (VIP, événement), quelle que soit la finition. Les packs actuels (gratuits ou payés en éclats, monnaie gagnée en jouant) ne lient pas.
+- Table `events` minimale (code, nom, dates) pour le nom affiché sur l'Édition Arène.
+- `getRevealAnimation(rarity, finish)` renvoie une liste d'étapes (`flip`, `flip-combo`, `drop-*`, `finish-*`). À la lecture : la première animation plein écran de la liste fait le retournement ; une finition jouée après un drop démarre quand la face apparaît.
+- Pas encore obtenables, faute de fonctionnalité : Full art en récompense de collection, Édition Arène (événements), vitrine de profil. Designs, règles et animations prêts.
+- « Le mécanisme des correctifs » pour l'anti-fuite côté API n'existait dans aucun document : retenu, la révélation côté serveur (voir étape 3).
+
 ## 2026-10-13 — Animations d'ouverture et de drop
 
 Référence exacte : `docs/design/pixpedia-animations.html` (timelines et keyframes repris tels quels).

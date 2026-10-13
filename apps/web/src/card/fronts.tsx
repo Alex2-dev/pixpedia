@@ -17,7 +17,7 @@ interface PartsOptions {
 /** Morceaux communs à tous les designs (illustration, badge, coût, stats, pied). */
 function parts(d: CardData, R: RarityStyle, o: PartsOptions = {}) {
   const ring = o.ring ?? R.color;
-  const finishTag = d.finish === 'holo' ? 'HOLO' : d.finish === 'full_art' ? 'FULL ART' : null;
+  const finishTag = d.finish === 'holo' ? 'HOLO' : d.finish === 'fullart' ? 'FULL ART' : null;
   const meta = [d.year, d.platform?.toUpperCase(), d.family ? FAMILY_TEXT[d.family] : null]
     .filter(Boolean)
     .join(' · ');

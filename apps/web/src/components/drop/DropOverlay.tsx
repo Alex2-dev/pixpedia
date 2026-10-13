@@ -6,7 +6,7 @@ import {
   type CSSProperties,
   type ReactNode,
 } from 'react';
-import { getRevealAnimation, type DropKind } from '@pixpedia/shared';
+import { REVEAL_STEP_MS, dropOf, getRevealAnimation, type DropKind } from '@pixpedia/shared';
 import type { CardData } from '../../card/types';
 import { FIRST_HOF_SKIP_LOCK_MS } from './dropSequence';
 import { BossDrop } from './drops/BossDrop';
@@ -82,7 +82,7 @@ function DropRun({
   onFinal: (final: boolean, skip: () => void) => void;
   onReplay: () => void;
 }) {
-  const { durationMs } = getRevealAnimation(props.card.rarity);
+  const durationMs = REVEAL_STEP_MS[`drop-${kind}`];
   const { phase, final, skip } = useDropSequence({
     durationMs,
     skipLockMs: kind === 'hof' && props.firstHof ? FIRST_HOF_SKIP_LOCK_MS : 0,
@@ -145,8 +145,7 @@ function DropRun({
  * Un toucher la saute à l'état final ; ensuite, en mode ouverture, un toucher referme.
  */
 export function DropOverlay(props: DropOverlayProps) {
-  const reveal = getRevealAnimation(props.card.rarity);
-  const kind = reveal.kind === 'drop' ? reveal.drop : null;
+  const kind = dropOf(getRevealAnimation(props.card.rarity));
   const [run, setRun] = useState(0);
   const state = useRef<{ final: boolean; skip: () => void }>({ final: false, skip: () => {} });
   const rootRef = useRef<HTMLDivElement>(null);

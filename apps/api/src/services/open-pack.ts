@@ -19,6 +19,7 @@ import {
   EXTRA_STANDARD_PACK_SHARDS,
   packOddsSchema,
   resetsPity,
+  finishOddsSchema,
   rollFinish,
   rollRarity,
   type Finish,
@@ -107,6 +108,7 @@ export async function openPack(
     const [type] = await tx.select().from(packTypes).where(eq(packTypes.id, packTypeId));
     if (!type || !type.isActive) throw new ApiError(404, 'pack_type_not_found');
     const odds = packOddsSchema.parse(type.odds);
+    const finishOdds = finishOddsSchema.parse(type.finishOdds);
     // Pack gratuit : pris sur le stock, ou payé en éclats si le joueur le demande (spec §5.6).
     // Les éclats se gagnent en jouant : aucun argent réel, les cartes restent libres.
     const fromStock = type.cost === 0 && stock.available > 0 && !useShards;
@@ -153,7 +155,7 @@ export async function openPack(
         if (pick) break;
       }
       if (!pick) throw new ApiError(503, 'draw_pool_unavailable');
-      drawn.push({ ...pick, finish: rollFinish(randomInt) });
+      drawn.push({ ...pick, finish: rollFinish(randomInt, finishOdds) });
     }
 
     // 5. Collection : une carte est « nouvelle » si le joueur ne l'avait dans aucune finition.
@@ -166,14 +168,16 @@ export async function openPack(
           .where(and(eq(userCards.userId, userId), inArray(userCards.cardId, ids)))
       ).map((r) => r.cardId),
     );
+    // Règle JONUM : un pack qui lie ses cartes (VIP, événement…) les lie quelle que soit la finition.
+    const isBound = type.bindsCards;
     for (const d of drawn) {
-      await tx
-        .insert(userCards)
-        .values({ userId, cardId: d.cardId, finish: d.finish, isBound: false })
-        .onConflictDoUpdate({
-          target: [userCards.userId, userCards.cardId, userCards.finish, userCards.isBound],
-          set: { quantity: sql`${userCards.quantity} + 1` },
-        });
+      // Doublons comptés par carte, finition et liaison (index user_cards_copy_unique).
+      await tx.execute(sql`
+        insert into user_cards (user_id, card_id, finish, is_bound)
+        values (${userId}, ${d.cardId}, ${d.finish}, ${isBound})
+        on conflict (user_id, card_id, finish, is_bound, (coalesce(event_id, 0)))
+        do update set quantity = user_cards.quantity + 1
+      `);
     }
     const gameIds = new Map(
       (

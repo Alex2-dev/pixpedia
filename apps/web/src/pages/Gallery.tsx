@@ -55,7 +55,7 @@ const CARDS: CardData[] = [
     rarity: 'final',
     cost: 5,
     stats: { atk: 90, def: 77, pv: 72, vit: 35 },
-    finish: 'full_art',
+    finish: 'fullart',
   }),
   base({
     id: 999,

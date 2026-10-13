@@ -20,7 +20,7 @@ import {
   uniqueIndex,
   uuid,
 } from 'drizzle-orm/pg-core';
-import type { RarityParams, SlotOdds } from '@pixpedia/shared';
+import type { FinishOdds, RarityParams, SlotOdds } from '@pixpedia/shared';
 
 const timestamptz = (name: string) => timestamp(name, { withTimezone: true });
 
@@ -306,7 +306,28 @@ export const packTypes = pgTable('pack_types', {
   cost: integer('cost').notNull().default(0),
   /** Probabilités par emplacement : modifiables sans toucher au code, publiées dans le jeu. */
   odds: jsonb('odds').$type<SlotOdds[]>().notNull(),
+  /** Taux de finition par carte (holo, full art), publiés avec les taux de drop. */
+  finishOdds: jsonb('finish_odds')
+    .$type<FinishOdds>()
+    .notNull()
+    .default({ holo: 0.05, fullart: 0.01 }),
+  /**
+   * Cartes liées au compte (packs VIP, d'événement…). Règle JONUM, non négociable :
+   * un pack payé en argent réel et aléatoire donne toujours des cartes liées.
+   */
+  bindsCards: boolean('binds_cards').notNull().default(false),
   isActive: boolean('is_active').notNull().default(true),
+});
+
+/** Événements (spec §18). Pour l'instant : le nom affiché sur les Éditions Arène. */
+export const events = pgTable('events', {
+  id: serial('id').primaryKey(),
+  code: text('code').notNull().unique(),
+  /** Nom générique, sans marque de tournoi (ex. « Worlds 2026 »). */
+  name: text('name').notNull(),
+  startsAt: timestamptz('starts_at').notNull(),
+  endsAt: timestamptz('ends_at').notNull(),
+  createdAt: timestamptz('created_at').notNull().defaultNow(),
 });
 
 /** Index dense par rareté : un tirage = une lecture par clé primaire (spec §8.1). Reconstruit après chaque sync. */
@@ -397,23 +418,40 @@ export const sessions = pgTable(
 export const userCards = pgTable(
   'user_cards',
   {
+    id: bigserial('id', { mode: 'number' }).primaryKey(),
     userId: integer('user_id')
       .notNull()
       .references(() => users.id, { onDelete: 'cascade' }),
     cardId: integer('card_id')
       .notNull()
       .references(() => cards.id),
-    /** normal | holo | full_art | code d'événement */
+    /** normal | holo | fullart | arena (apparence seulement). */
     finish: text('finish').notNull().default('normal'),
-    /** true = liée au compte : ni vendable ni échangeable (règle JONUM, spec §17.4). */
+    /** true = liée au compte : ni vendable, ni échangeable, ni recyclable (règle JONUM, spec §17.4). */
     isBound: boolean('is_bound').notNull().default(false),
+    /** Événement d'une Édition Arène (obligatoire pour arena, vide sinon). */
+    eventId: integer('event_id').references(() => events.id),
     quantity: integer('quantity').notNull().default(1),
     isFavorite: boolean('is_favorite').notNull().default(false),
+    /** Date d'obtention du premier exemplaire (« Tirée le … », date de l'Édition Arène). */
     firstObtainedAt: timestamptz('first_obtained_at').notNull().defaultNow(),
   },
   (t) => [
-    primaryKey({ columns: [t.userId, t.cardId, t.finish, t.isBound] }),
+    // Les doublons se comptent par carte, finition, liaison et événement.
+    uniqueIndex('user_cards_copy_unique').on(
+      t.userId,
+      t.cardId,
+      t.finish,
+      t.isBound,
+      sql`coalesce(${t.eventId}, 0)`,
+    ),
     check('user_cards_quantity_check', sql`${t.quantity} > 0`),
+    check('user_cards_finish_check', sql`${t.finish} in ('normal', 'holo', 'fullart', 'arena')`),
+    // Une Édition Arène est toujours liée au compte et rattachée à son événement.
+    check(
+      'user_cards_arena_check',
+      sql`${t.finish} <> 'arena' or (${t.isBound} and ${t.eventId} is not null)`,
+    ),
     index('user_cards_user_idx').on(t.userId, t.firstObtainedAt.desc()),
   ],
 );
