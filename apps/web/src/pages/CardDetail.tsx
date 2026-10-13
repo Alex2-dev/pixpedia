@@ -1,11 +1,20 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { recycleValue } from '@pixpedia/shared';
-import { api, errorMessage, type CardDetail as Detail } from '../api';
+import {
+  DEFAULT_PACK_ODDS,
+  formatChance,
+  getRevealAnimation,
+  perCardChance,
+  recycleValue,
+  type SlotOdds,
+} from '@pixpedia/shared';
+import { api, errorMessage, type CardDetail as Detail, type PacksResponse } from '../api';
 import { toCardData } from '../card/adapt';
 import { Card } from '../card/Card';
+import { DropOverlay } from '../components/drop/DropOverlay';
 import { useSession } from '../session';
 import { useCardWidth } from '../useCardWidth';
+import { useReducedMotionPref } from '../useReducedMotion';
 
 const FINISH_LABEL: Record<string, string> = {
   normal: 'Normale',
@@ -20,6 +29,20 @@ export function CardDetail() {
   const [error, setError] = useState<string | null>(null);
 
   const [version, setVersion] = useState(0);
+  const [dropOpen, setDropOpen] = useState(false);
+  const [odds, setOdds] = useState<SlotOdds[]>(DEFAULT_PACK_ODDS);
+  const reduced = useReducedMotionPref();
+
+  // Chances affichées dans le drop : celles du pack standard.
+  useEffect(() => {
+    api<PacksResponse>('/packs').then(
+      (r) => {
+        const standard = r.packs.find((p) => p.code === 'standard');
+        if (standard) setOdds(standard.odds);
+      },
+      () => {},
+    );
+  }, []);
   const { refresh } = useSession();
 
   useEffect(() => {
@@ -53,13 +76,44 @@ export function CardDetail() {
 
   const best =
     card.owned.find((o) => o.finish === 'full_art') ?? card.owned.find((o) => o.finish === 'holo');
+  const cardData = toCardData({ ...card, finish: best?.finish });
+  const hasDrop = getRevealAnimation(card.rarity).kind === 'drop';
+  // Date du premier exemplaire, toutes finitions confondues.
+  const firstDrawn = card.owned.length
+    ? new Date(Math.min(...card.owned.map((o) => new Date(o.firstObtainedAt).getTime())))
+    : null;
 
   return (
     <article className="detail">
       <div className="detail-card">
-        <Card data={toCardData({ ...card, finish: best?.finish })} width={width} />
+        <Card data={cardData} width={width} />
         <p className="muted small center">Touchez la carte pour la retourner</p>
+        {firstDrawn && (
+          <p className="px-label center drawn-on" data-testid="drawn-on">
+            Tirée le {firstDrawn.toLocaleDateString('fr-FR')}
+          </p>
+        )}
+        {/* Disponible pour tous, même sans posséder la carte : ça donne envie de la tirer. */}
+        {hasDrop && (
+          <button
+            type="button"
+            className="btn"
+            data-testid="play-drop"
+            onClick={() => setDropOpen(true)}
+          >
+            ▶ Voir l'animation de drop
+          </button>
+        )}
       </div>
+      {dropOpen && (
+        <DropOverlay
+          card={{ ...cardData, isNew: false }}
+          chance={formatChance(perCardChance(card.rarity, odds))}
+          mode="catalogue"
+          reduced={reduced}
+          onClose={() => setDropOpen(false)}
+        />
+      )}
       <div className="panel detail-info">
         <p className="px-label muted">
           {card.number} · Série {card.seriesCode} · {card.rarityLabel} · {card.familyLabel}

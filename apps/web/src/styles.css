@@ -445,6 +445,16 @@ th {
 }
 .detail-card {
   padding-top: 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+.detail-card p {
+  margin: 0;
+}
+.drawn-on {
+  color: var(--rune);
 }
 .detail-info {
   width: 100%;
