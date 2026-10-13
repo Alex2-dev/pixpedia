@@ -9,6 +9,7 @@ import {
   computePackStock,
   openPackSchema,
   recycleSchema,
+  settingsSchema,
 } from '@pixpedia/shared';
 import { requireUser } from '../auth/plugin';
 import { loadCardViews } from '../cards';
@@ -50,7 +51,27 @@ export const playerRoutes: FastifyPluginAsync<PlayerRouteOptions> = async (app, 
       pityCounter: u!.pityCounter,
       shards: u!.shards,
       coins: u!.coins,
+      reducedMotion: u!.reducedMotion,
+      /** false tant que le joueur n'a jamais vu d'animation Hall of Fame. */
+      hofSeen: u!.firstHofSeenAt !== null,
     };
+  });
+
+  app.patch('/me/settings', { preHandler: requireUser }, async (req, reply) => {
+    const parsed = settingsSchema.safeParse(req.body);
+    if (!parsed.success) return sendInvalid(reply, parsed.error);
+    await db.update(users).set(parsed.data).where(eq(users.id, req.user!.id));
+    return parsed.data;
+  });
+
+  /** Le joueur a vu son premier Hall of Fame : les suivants pourront être sautés tout de suite. */
+  app.post('/me/hof-seen', { preHandler: requireUser }, async (req) => {
+    const [row] = await db
+      .update(users)
+      .set({ firstHofSeenAt: sql`coalesce(${users.firstHofSeenAt}, now())` })
+      .where(eq(users.id, req.user!.id))
+      .returning({ firstHofSeenAt: users.firstHofSeenAt });
+    return { firstHofSeenAt: row!.firstHofSeenAt };
   });
 
   // Les taux de drop sont publics (spec §5.4).

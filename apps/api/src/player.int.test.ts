@@ -550,6 +550,91 @@ describe.skipIf(!url)('API joueur (intégration, TEST_DATABASE_URL)', () => {
     });
   });
 
+  describe('animations : réglages et annonces Hall of Fame', () => {
+    it('enregistre l’option « Animations réduites » dans le profil', async () => {
+      const cookie = await register();
+      expect(await me(cookie)).toMatchObject({ reducedMotion: false, hofSeen: false });
+      const res = await app.inject({
+        method: 'PATCH',
+        url: '/me/settings',
+        headers: { cookie },
+        payload: { reducedMotion: true },
+      });
+      expect(res.json()).toEqual({ reducedMotion: true });
+      expect((await me(cookie)).reducedMotion).toBe(true);
+      const bad = await app.inject({
+        method: 'PATCH',
+        url: '/me/settings',
+        headers: { cookie },
+        payload: { reducedMotion: 'oui' },
+      });
+      expect(bad.statusCode).toBe(400);
+    });
+
+    it('retient le premier Hall of Fame vu, une seule fois', async () => {
+      const cookie = await register();
+      const first = (
+        await app.inject({ method: 'POST', url: '/me/hof-seen', headers: { cookie } })
+      ).json();
+      const again = (
+        await app.inject({ method: 'POST', url: '/me/hof-seen', headers: { cookie } })
+      ).json();
+      expect(first.firstHofSeenAt).toBeTruthy();
+      expect(again.firstHofSeenAt).toBe(first.firstHofSeenAt);
+      expect((await me(cookie)).hofSeen).toBe(true);
+    });
+
+    it('annonce chaque Hall of Fame tiré (card_drop_hof)', async () => {
+      await db.execute(sql`delete from pack_types where code = 'only-hof'`);
+      await db.execute(sql`insert into games (id, name, slug) values (900, 'Starfall Odyssey', 'starfall')
+        on conflict (id) do nothing`);
+      const [card] = (
+        await db.execute<{ id: number }>(sql`
+          insert into cards (series_id, game_id, number, rarity, score_at_print, atk, def, hp, spd, family)
+          values (1, 900, 900, 'hof', 999, 99, 99, 99, 12, 'rpg')
+          on conflict (series_id, game_id) do update set rarity = 'hof'
+          returning id`)
+      ).rows;
+      const [type] = (
+        await db.execute<{ id: number }>(sql`
+          insert into pack_types (code, name, cost, odds)
+          values ('only-hof', 'Pack test', 100, ${JSON.stringify(DEFAULT_PACK_ODDS)}::jsonb) returning id`)
+      ).rows;
+      // Un seul Hall of Fame et 4 Starter : le pack contient exactement ce Hall of Fame.
+      await db.execute(sql`insert into draw_pool values (${type!.id}, 'hof', 1, ${card!.id})`);
+      await db.execute(sql`insert into draw_pool select ${type!.id}, 'starter', idx, card_id from draw_pool
+        where pack_type_id = ${packTypeId} and rarity = 'starter'`);
+      await db.execute(
+        sql`insert into draw_pool_counts values (${type!.id}, 'hof', 1), (${type!.id}, 'starter', 12)`,
+      );
+
+      const cookie = await register();
+      await db.execute(sql`update users set shards = 100`);
+      rng = (max) => (max === 10_000 ? 9_999 : counter++ % max);
+      const res = await app.inject({
+        method: 'POST',
+        url: '/packs/open',
+        headers: { cookie },
+        payload: { packTypeId: type!.id, idempotencyKey: randomUUID() },
+      });
+      expect(res.statusCode).toBe(200);
+
+      const drops = (await app.inject({ url: '/drops/hof' })).json().drops;
+      expect(drops).toEqual([
+        expect.objectContaining({
+          username: 'Link_64',
+          cardId: card!.id,
+          name: 'Starfall Odyssey',
+        }),
+      ]);
+      const later = (
+        await app.inject({ url: `/drops/hof?since=${encodeURIComponent(drops[0].createdAt)}` })
+      ).json();
+      expect(later.drops).toEqual([]);
+      expect((await app.inject({ url: '/drops/hof?since=hier' })).statusCode).toBe(400);
+    });
+  });
+
   describe('collection', () => {
     it('liste, filtre et pagine les cartes du joueur seulement', async () => {
       const cookie = await register();

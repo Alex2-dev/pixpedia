@@ -366,6 +366,10 @@ export const users = pgTable(
     shards: integer('shards').notNull().default(0),
     /** Monnaie payante : prévue dès le départ, aucun paiement actif. */
     coins: integer('coins').notNull().default(0),
+    /** Option « Animations réduites » du profil (en plus de prefers-reduced-motion). */
+    reducedMotion: boolean('reduced_motion').notNull().default(false),
+    /** Premier Hall of Fame vu : le saut de son animation est bloqué 1,5 s la première fois. */
+    firstHofSeenAt: timestamptz('first_hof_seen_at'),
     createdAt: timestamptz('created_at').notNull().defaultNow(),
   },
   (t) => [
@@ -452,6 +456,30 @@ export const currencyLedger = pgTable(
   (t) => [
     check('currency_ledger_currency_check', sql`${t.currency} in ('shards', 'coins')`),
     index('currency_ledger_user_idx').on(t.userId, t.createdAt),
+  ],
+);
+
+/**
+ * Événements de drop annoncés à la communauté (« pseudo a tiré Jeu »).
+ * Écrits dans la transaction d'ouverture ; le temps réel (SSE ou WebSocket) viendra plus tard.
+ */
+export const dropEvents = pgTable(
+  'drop_events',
+  {
+    id: bigserial('id', { mode: 'number' }).primaryKey(),
+    /** card_drop_hof */
+    kind: text('kind').notNull(),
+    userId: integer('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    cardId: integer('card_id')
+      .notNull()
+      .references(() => cards.id),
+    createdAt: timestamptz('created_at').notNull().defaultNow(),
+  },
+  (t) => [
+    check('drop_events_kind_check', sql`${t.kind} in ('card_drop_hof')`),
+    index('drop_events_kind_created_idx').on(t.kind, t.createdAt),
   ],
 );
 

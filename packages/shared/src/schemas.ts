@@ -151,3 +151,15 @@ export interface CardView {
 export function cardNumber(number: number): string {
   return `#${String(number).padStart(4, '0')}`;
 }
+
+/* ---------- Réglages du profil et annonces ---------- */
+
+export const settingsSchema = z.object({
+  reducedMotion: z.boolean(),
+});
+
+export const hofDropsQuerySchema = z.object({
+  /** Ne renvoie que les annonces postérieures (ISO 8601). */
+  since: z.iso.datetime({ offset: true }).optional(),
+  limit: z.coerce.number().int().min(1).max(50).default(10),
+});

@@ -4,6 +4,7 @@ import {
   currencyLedger,
   drawPool,
   drawPoolCounts,
+  dropEvents,
   packOpenings,
   packTypes,
   userCards,
@@ -214,6 +215,15 @@ export async function openPack(
       .insert(packOpenings)
       .values({ userId, packTypeId: type.id, idempotencyKey, cards: result, openedAt: now })
       .returning({ id: packOpenings.id });
+    // Annonce à la communauté pour chaque Hall of Fame tiré.
+    const hofs = drawn.filter((d) => d.rarity === 'hof');
+    if (hofs.length) {
+      await tx
+        .insert(dropEvents)
+        .values(
+          hofs.map((d) => ({ kind: 'card_drop_hof', userId, cardId: d.cardId, createdAt: now })),
+        );
+    }
     if (shardCost > 0) {
       await tx.insert(currencyLedger).values({
         userId,
