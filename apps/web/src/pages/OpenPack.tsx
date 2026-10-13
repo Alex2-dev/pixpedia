@@ -7,10 +7,10 @@ import {
   type Rarity,
   type SlotOdds,
 } from '@pixpedia/shared';
-import { api, errorMessage, type OpenResult, type PacksResponse } from '../api';
+import { api, errorMessage, type DrawnCard, type OpenResult, type PacksResponse } from '../api';
 import { toCardData } from '../card/adapt';
 import { PackOpening } from '../features/pack-opening/PackOpening';
-import type { OpeningCard } from '../features/pack-opening/types';
+import type { OpeningCard, RevealSource } from '../features/pack-opening/types';
 import { useSession } from '../session';
 import { useReducedMotionPref } from '../useReducedMotion';
 
@@ -44,8 +44,9 @@ export function openPackState(
 }
 
 /**
- * Ouverture d'un ou plusieurs packs. Les tirages sont décidés par le serveur (spec §8.4) et
- * demandés dès l'arrivée sur l'écran : l'animation ne fait que rejouer le résultat.
+ * Ouverture d'un ou plusieurs packs. Les tirages sont décidés par le serveur (spec §8.4) dès
+ * l'arrivée sur l'écran, mais il ne dévoile chaque carte qu'au toucher qui la retourne (règle
+ * anti-fuite) : `/packs/openings/:id/reveal`, ou `reveal-all` pour « Tout révéler ».
  */
 export function OpenPack() {
   const location = useLocation();
@@ -55,7 +56,7 @@ export function OpenPack() {
   const state = location.state as Partial<OpenPackState> | null;
   const keys = state?.keys;
   const packTypeId = state?.packTypeId;
-  const [cards, setCards] = useState<OpeningCard[] | null>(null);
+  const [source, setSource] = useState<RevealSource | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [last, setLast] = useState<OpenResult | null>(null);
   const [pack, setPack] = useState<{ name: string; odds: SlotOdds[] }>({
@@ -78,22 +79,14 @@ export function OpenPack() {
     if (!packTypeId || !keys?.length) return;
     let cancelled = false;
     (async () => {
-      const opened: OpeningCard[] = [];
-      let lastResult: OpenResult | null = null;
+      const opened: OpenResult[] = [];
       for (const [i, key] of keys.entries()) {
         try {
-          const r = await api<OpenResult>('/packs/open', {
-            method: 'POST',
-            body: { packTypeId, idempotencyKey: key, useShards: state?.useShards ?? false },
-          });
-          lastResult = r;
           opened.push(
-            ...r.cards.map((c) => ({
-              card: toCardData(c),
-              rarity: c.rarity,
-              pack: i + 1,
-              isNew: c.isNew,
-            })),
+            await api<OpenResult>('/packs/open', {
+              method: 'POST',
+              body: { packTypeId, idempotencyKey: key, useShards: state?.useShards ?? false },
+            }),
           );
         } catch (err) {
           if (!cancelled) {
@@ -106,9 +99,9 @@ export function OpenPack() {
           break;
         }
       }
-      if (cancelled) return;
-      if (opened.length) setCards(opened);
-      if (lastResult) setLast(lastResult);
+      if (cancelled || !opened.length) return;
+      setSource(serverSource(opened));
+      setLast(opened[opened.length - 1]!);
     })();
     return () => {
       cancelled = true;
@@ -139,9 +132,9 @@ export function OpenPack() {
 
   return (
     <PackOpening
-      packCount={cards ? Math.max(...cards.map((c) => c.pack)) : count}
+      packCount={source ? source.slots[source.slots.length - 1]! : count}
       packName={pack.name}
-      cards={cards}
+      source={source}
       error={error}
       reduced={reduced}
       hofSeen={me?.hofSeen ?? true}
@@ -167,4 +160,47 @@ export function OpenPack() {
       }}
     />
   );
+}
+
+/** Cartes cachées de plusieurs ouvertures, mises bout à bout (pack 1, puis pack 2…). */
+function serverSource(openings: readonly OpenResult[]): RevealSource {
+  const toOpening = (c: DrawnCard, pack: number): OpeningCard => ({
+    card: toCardData(c),
+    rarity: c.rarity,
+    pack,
+    isNew: c.isNew,
+  });
+  const slots: number[] = [];
+  const initial: (OpeningCard | undefined)[] = [];
+  const where: { opening: OpenResult; index: number }[] = [];
+  openings.forEach((o, p) => {
+    for (let i = 0; i < o.total; i++) {
+      slots.push(p + 1);
+      const seen = o.revealed[i];
+      initial.push(seen && toOpening(seen, p + 1));
+      where.push({ opening: o, index: i });
+    }
+  });
+  return {
+    slots,
+    initial,
+    async reveal(at) {
+      const { opening, index } = where[at]!;
+      const r = await api<{ card: DrawnCard }>(`/packs/openings/${opening.openingId}/reveal`, {
+        method: 'POST',
+        body: { index },
+      });
+      return toOpening(r.card, slots[at]!);
+    },
+    async revealAll() {
+      const all: OpeningCard[] = [];
+      for (const [p, o] of openings.entries()) {
+        const r = await api<{ cards: DrawnCard[] }>(`/packs/openings/${o.openingId}/reveal-all`, {
+          method: 'POST',
+        });
+        all.push(...r.cards.map((c) => toOpening(c, p + 1)));
+      }
+      return all;
+    },
+  };
 }

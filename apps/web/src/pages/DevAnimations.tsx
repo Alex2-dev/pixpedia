@@ -1,9 +1,16 @@
 import { useState } from 'react';
-import { DEFAULT_PACK_ODDS, formatChance, perCardChance, type Rarity } from '@pixpedia/shared';
+import {
+  DEFAULT_PACK_ODDS,
+  formatChance,
+  perCardChance,
+  rarityRank,
+  type Rarity,
+} from '@pixpedia/shared';
 import { DropOverlay } from '../components/drop/DropOverlay';
 import { HofBanner } from '../components/HofBanner';
 import { DEMO_BY_RARITY, DEMO_ONE_PACK, DEMO_SEVEN_PACKS } from '../dev/fixtures';
 import { PackOpening } from '../features/pack-opening/PackOpening';
+import { localSource } from '../features/pack-opening/types';
 
 const DROPS: { rarity: Rarity; label: string; color: string }[] = [
   { rarity: 'boss', label: 'Boss · ~1,4 s', color: '#A05CFF' },
@@ -97,7 +104,7 @@ export function DevAnimations() {
           key={opening.run}
           packCount={opening.count}
           packName="Pack des légendes"
-          cards={opening.count === 1 ? DEMO_ONE_PACK : DEMO_SEVEN_PACKS}
+          source={localSource(opening.count === 1 ? DEMO_ONE_PACK : DEMO_SEVEN_PACKS, rarityRank)}
           reduced={reduced}
           hofSeen={!firstHof}
           username="thedead"

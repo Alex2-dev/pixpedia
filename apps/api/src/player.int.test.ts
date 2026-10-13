@@ -121,13 +121,32 @@ describe.skipIf(!url)('API joueur (intégration, TEST_DATABASE_URL)', () => {
     return `pixpedia_session=${cookie!.value}`;
   }
 
-  const open = (cookie: string, key = randomUUID()) =>
-    app.inject({
+  /**
+   * Ouvre puis révèle tout, comme « Tout révéler » côté front : la réponse d'ouverture ne
+   * contient aucune carte (règle anti-fuite), on les ajoute pour les assertions.
+   */
+  async function withReveal(res: Awaited<ReturnType<typeof app.inject>>, cookie: string) {
+    if (res.statusCode !== 200) return res;
+    const body = res.json();
+    const all = await app.inject({
       method: 'POST',
-      url: '/packs/open',
+      url: `/packs/openings/${body.openingId}/reveal-all`,
       headers: { cookie },
-      payload: { packTypeId, idempotencyKey: key },
     });
+    const merged = { ...body, cards: all.json().cards };
+    return { statusCode: res.statusCode, json: () => merged, raw: body };
+  }
+
+  const open = async (cookie: string, key = randomUUID(), id = packTypeId) =>
+    withReveal(
+      await app.inject({
+        method: 'POST',
+        url: '/packs/open',
+        headers: { cookie },
+        payload: { packTypeId: id, idempotencyKey: key },
+      }),
+      cookie,
+    );
 
   const me = async (cookie: string) =>
     (await app.inject({ url: '/me', headers: { cookie } })).json();
@@ -536,12 +555,7 @@ describe.skipIf(!url)('API joueur (intégration, TEST_DATABASE_URL)', () => {
       await db.execute(sql`insert into draw_pool_counts values (${themed!.id}, 'bonus', 6)`);
       const cookie = await register();
       await db.execute(sql`update users set shards = 150`);
-      const res = await app.inject({
-        method: 'POST',
-        url: '/packs/open',
-        headers: { cookie },
-        payload: { packTypeId: themed!.id, idempotencyKey: randomUUID() },
-      });
+      const res = await open(cookie, randomUUID(), themed!.id);
       expect(res.statusCode).toBe(200);
       const body = res.json();
       // Starter et Combo tirés n'existent pas dans ce pool : on obtient des Bonus.
@@ -611,13 +625,20 @@ describe.skipIf(!url)('API joueur (intégration, TEST_DATABASE_URL)', () => {
       const cookie = await register();
       await db.execute(sql`update users set shards = 100`);
       rng = (max) => (max === 10_000 ? 9_999 : counter++ % max);
-      const res = await app.inject({
+      const opened = await app.inject({
         method: 'POST',
         url: '/packs/open',
         headers: { cookie },
         payload: { packTypeId: type!.id, idempotencyKey: randomUUID() },
       });
-      expect(res.statusCode).toBe(200);
+      expect(opened.statusCode).toBe(200);
+      // Rien n'est annoncé tant que la carte n'est pas révélée (règle anti-fuite).
+      expect((await app.inject({ url: '/drops/hof' })).json().drops).toEqual([]);
+      await app.inject({
+        method: 'POST',
+        url: `/packs/openings/${opened.json().openingId}/reveal-all`,
+        headers: { cookie },
+      });
 
       const drops = (await app.inject({ url: '/drops/hof' })).json().drops;
       expect(drops).toEqual([
@@ -635,14 +656,68 @@ describe.skipIf(!url)('API joueur (intégration, TEST_DATABASE_URL)', () => {
     });
   });
 
-  describe('finitions et éditions', () => {
-    const openType = (cookie: string, id: number) =>
+  describe('anti-fuite : révélation côté serveur', () => {
+    const rawOpen = (cookie: string, key = randomUUID()) =>
       app.inject({
         method: 'POST',
         url: '/packs/open',
         headers: { cookie },
-        payload: { packTypeId: id, idempotencyKey: randomUUID() },
+        payload: { packTypeId, idempotencyKey: key },
       });
+    const reveal = (cookie: string, id: number, index: number) =>
+      app.inject({
+        method: 'POST',
+        url: `/packs/openings/${id}/reveal`,
+        headers: { cookie },
+        payload: { index },
+      });
+
+    it('l’ouverture ne renvoie ni rareté ni finition, seulement le nombre de cartes', async () => {
+      const cookie = await register();
+      const res = await rawOpen(cookie);
+      const body = res.json();
+      expect(body).toMatchObject({ total: 5, revealedCount: 0, revealed: [] });
+      expect(body).not.toHaveProperty('cards');
+      expect(res.body).not.toMatch(/rarity|finish|starter|bonus|combo|boss|holo|fullart|cardId/i);
+    });
+
+    it('révèle dans l’ordre, la plus rare en dernier, sans saut en avant', async () => {
+      const cookie = await register();
+      const { openingId } = (await rawOpen(cookie)).json();
+      expect((await reveal(cookie, openingId, 2)).json()).toEqual({ error: 'reveal_out_of_order' });
+      const rarities: string[] = [];
+      for (let i = 0; i < 5; i++) {
+        const r = (await reveal(cookie, openingId, i)).json();
+        expect(r).toMatchObject({ index: i, total: 5 });
+        rarities.push(r.card.rarity);
+      }
+      expect(rarities).toEqual(['starter', 'starter', 'starter', 'bonus', 'combo']);
+      // Re-révéler une carte déjà vue est permis (idempotent).
+      expect((await reveal(cookie, openingId, 0)).json().card.rarity).toBe('starter');
+      expect((await reveal(cookie, openingId, 5)).statusCode).toBe(404);
+    });
+
+    it('un rechargement reprend les cartes déjà révélées, pas les suivantes', async () => {
+      const cookie = await register();
+      const key = randomUUID();
+      const { openingId } = (await rawOpen(cookie, key)).json();
+      await reveal(cookie, openingId, 0);
+      await reveal(cookie, openingId, 1);
+      const replay = (await rawOpen(cookie, key)).json();
+      expect(replay).toMatchObject({ replayed: true, total: 5, revealedCount: 2 });
+      expect(replay.revealed).toHaveLength(2);
+    });
+
+    it('n’ouvre pas les cartes d’un autre joueur', async () => {
+      const cookie = await register();
+      const { openingId } = (await rawOpen(cookie)).json();
+      const other = await register({ ...account, username: 'Zelda', email: 'zelda@hyrule.fr' });
+      expect((await reveal(other, openingId, 0)).statusCode).toBe(404);
+    });
+  });
+
+  describe('finitions et éditions', () => {
+    const openType = (cookie: string, id: number) => open(cookie, randomUUID(), id);
 
     async function packType(code: string, finishOdds: object, bindsCards: boolean) {
       await db.execute(sql`delete from pack_types where code = ${code}`);

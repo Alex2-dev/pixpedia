@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState, type CSSProperties } from 'react';
-import { dropOf, getRevealAnimation, rarityRank, type Rarity } from '@pixpedia/shared';
+import { useEffect, useState, type CSSProperties } from 'react';
+import { dropOf, getRevealAnimation, type Rarity } from '@pixpedia/shared';
 import { DropOverlay } from '../../components/drop/DropOverlay';
 import type { DropCue } from '../../components/drop/useDropSequence';
 import { useStageScale } from '../../components/drop/useStageScale';
@@ -7,15 +7,18 @@ import { PackStack } from './PackStack';
 import { RevealRecap } from './RevealRecap';
 import { RevealStage } from './RevealStage';
 import { TearAnimation } from './TearAnimation';
-import { revealOrder, tearDurationMs, type OpeningCard, type OpeningPhase } from './types';
+import { tearDurationMs, type OpeningCard, type OpeningPhase, type RevealSource } from './types';
 import './opening.css';
 
 export interface PackOpeningProps {
   packCount: number;
   /** Nom du pack, ex. « Pack standard ». */
   packName: string;
-  /** Cartes tirées par le serveur ; `null` tant qu'elles arrivent (la déchirure peut commencer). */
-  cards: OpeningCard[] | null;
+  /**
+   * Cartes tirées par le serveur, cachées : chacune n'est demandée qu'au toucher qui la retourne.
+   * `null` tant que l'ouverture n'a pas répondu (la déchirure peut commencer).
+   */
+  source: RevealSource | null;
   error?: string | null;
   /** prefers-reduced-motion ou option « Animations réduites » du profil. */
   reduced: boolean;
@@ -34,7 +37,7 @@ export interface PackOpeningProps {
 
 /** Ouverture de packs : idle → tearing → reveal → recap (maquette pixpedia-animations.html). */
 export function PackOpening(props: PackOpeningProps) {
-  const { packCount, cards, reduced } = props;
+  const { packCount, source, reduced } = props;
   const [phase, setPhase] = useState<OpeningPhase>('idle');
   const [tearDone, setTearDone] = useState(false);
   const [shown, setShown] = useState(0);
@@ -42,9 +45,13 @@ export function PackOpening(props: PackOpeningProps) {
   const [afterDrop, setAfterDrop] = useState(false);
   const [dropOpen, setDropOpen] = useState(false);
   const [hofSeen, setHofSeen] = useState(props.hofSeen);
+  const [known, setKnown] = useState<(OpeningCard | undefined)[]>([]);
+  const [pending, setPending] = useState(false);
+  const [failure, setFailure] = useState<string | null>(null);
   const scale = useStageScale();
 
-  const ordered = useMemo(() => (cards ? revealOrder(cards, rarityRank) : []), [cards]);
+  const total = source?.slots.length ?? 0;
+  const cardAt = (i: number) => known[i] ?? source?.initial[i];
 
   // Fin de la déchirure : 1,75 s pour 1 pack, 3,26 s pour 7 (0,3 s en mode réduit).
   useEffect(() => {
@@ -54,7 +61,7 @@ export function PackOpening(props: PackOpeningProps) {
   }, [phase, packCount, reduced]);
 
   // Révélation dès que la déchirure est finie et que le serveur a répondu.
-  const revealing = phase === 'tearing' && tearDone && ordered.length > 0;
+  const revealing = phase === 'tearing' && tearDone && total > 0;
   const currentPhase: OpeningPhase = revealing ? 'reveal' : phase;
   useEffect(() => {
     if (revealing) {
@@ -63,13 +70,34 @@ export function PackOpening(props: PackOpeningProps) {
     }
   }, [revealing]);
 
-  const item = ordered[shown];
-  const total = ordered.length;
+  // Carte courante : connue seulement une fois révélée par le serveur.
+  const item = cardAt(shown);
 
-  const tap = () => {
-    if (!item) return;
+  const learn = (cards: Record<number, OpeningCard>) =>
+    setKnown((k) => {
+      const next = [...k];
+      for (const [i, c] of Object.entries(cards)) next[Number(i)] = c;
+      return next;
+    });
+
+  const tap = async () => {
+    if (!source || pending) return;
     if (!up) {
-      if (dropOf(getRevealAnimation(item.rarity))) setDropOpen(true);
+      let card = item;
+      if (!card) {
+        setPending(true);
+        setFailure(null);
+        try {
+          card = await source.reveal(shown);
+          learn({ [shown]: card });
+        } catch {
+          setFailure('Connexion perdue, touche la carte pour réessayer.');
+          return;
+        } finally {
+          setPending(false);
+        }
+      }
+      if (dropOf(getRevealAnimation(card.rarity, card.card.finish))) setDropOpen(true);
       else setUp(true);
       return;
     }
@@ -93,8 +121,8 @@ export function PackOpening(props: PackOpeningProps) {
           ? `CARTE ${shown + 1} / ${total}`
           : 'RÉCAP';
   const kicker =
-    currentPhase === 'reveal' && item
-      ? `PACK ${item.pack} / ${packCount}`
+    currentPhase === 'reveal' && source
+      ? `PACK ${source.slots[shown]} / ${packCount}`
       : props.packName.toUpperCase();
   const label = `${props.packName.toUpperCase()} · 5 CARTES`;
 
@@ -142,7 +170,7 @@ export function PackOpening(props: PackOpeningProps) {
         {currentPhase === 'tearing' && (
           <>
             <TearAnimation count={packCount} label={label} />
-            {tearDone && !ordered.length && (
+            {tearDone && !total && (
               <div className="op-bottom">
                 <p
                   className="op-hint"
@@ -160,21 +188,37 @@ export function PackOpening(props: PackOpeningProps) {
           </>
         )}
 
-        {currentPhase === 'reveal' && item && (
+        {currentPhase === 'reveal' && (
           <RevealStage
-            item={item}
-            up={up}
+            index={shown}
+            item={up && item ? item : null}
             afterDrop={afterDrop}
-            pct={props.chance(item.rarity).pct}
+            pct={up && item ? props.chance(item.rarity).pct : ''}
             remaining={total - shown - 1}
-            onTap={tap}
-            onRevealAll={() => setPhase('recap')}
+            pending={pending}
+            failure={failure}
+            onTap={() => void tap()}
+            onRevealAll={() => {
+              if (!source || pending) return;
+              setPending(true);
+              source.revealAll().then(
+                (all) => {
+                  learn({ ...all });
+                  setPending(false);
+                  setPhase('recap');
+                },
+                () => {
+                  setPending(false);
+                  setFailure('Connexion perdue, réessaie « Tout révéler ».');
+                },
+              );
+            }}
           />
         )}
 
         {currentPhase === 'recap' && (
           <RevealRecap
-            cards={ordered}
+            cards={(source?.slots ?? []).map((_, i) => cardAt(i)).filter((c) => c !== undefined)}
             packCount={packCount}
             onAddToCodex={props.onAddToCodex}
             onReplay={props.onReplay}

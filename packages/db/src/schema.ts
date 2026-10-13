@@ -468,8 +468,13 @@ export const packOpenings = pgTable(
       .notNull()
       .references(() => packTypes.id),
     idempotencyKey: uuid('idempotency_key').notNull(),
-    /** [{cardId, gameId, rarity, finish, isNew}] */
+    /** [{cardId, gameId, rarity, finish, isNew}], dans l'ordre de révélation (la plus rare en dernier). */
     cards: jsonb('cards').notNull(),
+    /**
+     * Cartes déjà révélées au joueur (règle anti-fuite) : l'API ne renvoie la rareté et la
+     * finition d'une carte qu'à sa révélation, dans l'ordre.
+     */
+    revealedCount: smallint('revealed_count').notNull().default(0),
     openedAt: timestamptz('opened_at').notNull().defaultNow(),
   },
   (t) => [unique('pack_openings_idempotency_unique').on(t.userId, t.idempotencyKey)],

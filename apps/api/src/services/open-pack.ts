@@ -4,7 +4,6 @@ import {
   currencyLedger,
   drawPool,
   drawPoolCounts,
-  dropEvents,
   packOpenings,
   packTypes,
   userCards,
@@ -16,6 +15,7 @@ import {
   applyPity,
   computePackStock,
   rarityFallbackOrder,
+  rarityRank,
   EXTRA_STANDARD_PACK_SHARDS,
   packOddsSchema,
   resetsPity,
@@ -50,7 +50,10 @@ export interface DrawnCard {
 
 export interface OpenPackResult {
   openingId: number;
+  /** Toutes les cartes : à ne JAMAIS renvoyer telles quelles au client (règle anti-fuite). */
   cards: DrawnCard[];
+  /** Nombre de cartes déjà révélées (rejeu après un rechargement). */
+  revealedCount: number;
   replayed: boolean;
   packsAvailable: number;
   nextPackAt: Date | null;
@@ -96,6 +99,7 @@ export async function openPack(
       return {
         openingId: previous.id,
         cards: previous.cards as DrawnCard[],
+        revealedCount: previous.revealedCount,
         replayed: true,
         packsAvailable: stock.available,
         nextPackAt: stock.nextPackAt,
@@ -187,11 +191,16 @@ export async function openPack(
           .where(inArray(cards.id, ids))
       ).map((c) => [c.id, c.gameId]),
     );
-    const result: DrawnCard[] = drawn.map((d) => ({
-      ...d,
-      gameId: gameIds.get(d.cardId) as number,
-      isNew: !owned.has(d.cardId),
-    }));
+    // Ordre de révélation, décidé par le serveur : la carte la plus rare du pack en dernier.
+    const result: DrawnCard[] = drawn
+      .map((d, slot) => ({
+        ...d,
+        gameId: gameIds.get(d.cardId) as number,
+        isNew: !owned.has(d.cardId),
+        slot,
+      }))
+      .sort((a, b) => rarityRank(a.rarity) - rarityRank(b.rarity) || a.slot - b.slot)
+      .map(({ slot: _slot, ...c }) => c);
 
     // 6. Garantie, stock, éclats.
     const pityCounter = resetsPity(drawn.map((d) => d.rarity)) ? 0 : user.pityCounter + 1;
@@ -219,15 +228,7 @@ export async function openPack(
       .insert(packOpenings)
       .values({ userId, packTypeId: type.id, idempotencyKey, cards: result, openedAt: now })
       .returning({ id: packOpenings.id });
-    // Annonce à la communauté pour chaque Hall of Fame tiré.
-    const hofs = drawn.filter((d) => d.rarity === 'hof');
-    if (hofs.length) {
-      await tx
-        .insert(dropEvents)
-        .values(
-          hofs.map((d) => ({ kind: 'card_drop_hof', userId, cardId: d.cardId, createdAt: now })),
-        );
-    }
+    // L'annonce d'un Hall of Fame (card_drop_hof) n'est écrite qu'à la révélation de la carte.
     if (shardCost > 0) {
       await tx.insert(currencyLedger).values({
         userId,
@@ -241,6 +242,7 @@ export async function openPack(
     return {
       openingId: opening!.id,
       cards: result,
+      revealedCount: 0,
       replayed: false,
       packsAvailable: after.available,
       nextPackAt: after.nextPackAt,

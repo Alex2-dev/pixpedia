@@ -10,6 +10,33 @@ export interface OpeningCard {
   isNew: boolean;
 }
 
+/**
+ * Cartes d'une ouverture, cachées jusqu'à leur révélation (règle anti-fuite) : avant de toucher
+ * une carte, l'écran ne connaît que son pack d'origine, jamais sa rareté ni sa finition.
+ */
+export interface RevealSource {
+  /** Pack d'origine (1 à N) de chaque carte, dans l'ordre de révélation. */
+  slots: readonly number[];
+  /** Cartes déjà révélées (reprise après un rechargement), aux mêmes index que `slots`. */
+  initial: readonly (OpeningCard | undefined)[];
+  reveal(index: number): Promise<OpeningCard>;
+  revealAll(): Promise<OpeningCard[]>;
+}
+
+/** Source locale (démo, tests) : les cartes sont en mémoire, rangées comme le ferait le serveur. */
+export function localSource(
+  cards: readonly OpeningCard[],
+  rank: (r: Rarity) => number,
+): RevealSource {
+  const ordered = revealOrder(cards, rank);
+  return {
+    slots: ordered.map((c) => c.pack),
+    initial: [],
+    reveal: (i) => Promise.resolve(ordered[i]!),
+    revealAll: () => Promise.resolve(ordered),
+  };
+}
+
 export type OpeningPhase = 'idle' | 'tearing' | 'reveal' | 'recap';
 
 /**

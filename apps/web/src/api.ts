@@ -80,9 +80,12 @@ export interface PackType {
 
 export type DrawnCard = CardView & { finish: Finish; isNew: boolean };
 
+/** Ouverture : cartes cachées, seules celles déjà révélées sont renvoyées (règle anti-fuite). */
 export interface OpenResult {
   openingId: number;
-  cards: DrawnCard[];
+  total: number;
+  revealedCount: number;
+  revealed: DrawnCard[];
   replayed: boolean;
   packsAvailable: number;
   nextPackAt: string | null;

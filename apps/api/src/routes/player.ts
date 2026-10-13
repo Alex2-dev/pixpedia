@@ -15,7 +15,8 @@ import { requireUser } from '../auth/plugin';
 import { loadCardViews } from '../cards';
 import { ApiError, sendInvalid } from '../errors';
 import { escapeLike } from '../games';
-import { openPack, type PackConfig } from '../services/open-pack';
+import { openPack, type DrawnCard, type PackConfig } from '../services/open-pack';
+import { revealOpening } from '../services/reveal';
 import { listDuplicates, recycle } from '../services/recycle';
 
 export interface PlayerRouteOptions {
@@ -26,9 +27,20 @@ export interface PlayerRouteOptions {
 }
 
 const cardIdParams = z.object({ id: z.coerce.number().int().positive() });
+const openingParams = z.object({ id: z.coerce.number().int().positive() });
+const revealSchema = z.object({ index: z.number().int().min(0).max(99) });
 
 export const playerRoutes: FastifyPluginAsync<PlayerRouteOptions> = async (app, opts) => {
   const { db, pack } = opts;
+
+  /** Vues des cartes révélées, avec leur finition et « nouvelle ». */
+  const describeDrawn = async (drawn: DrawnCard[]) => {
+    const views = await loadCardViews(
+      db,
+      drawn.map((c) => c.cardId),
+    );
+    return drawn.map((c) => ({ ...views.get(c.cardId)!, finish: c.finish, isNew: c.isNew }));
+  };
   const now = opts.now ?? (() => new Date());
   const rng = opts.randomInt ?? ((max: number) => randomInt(max));
 
@@ -134,18 +146,66 @@ export const playerRoutes: FastifyPluginAsync<PlayerRouteOptions> = async (app, 
           parsed.data.idempotencyKey,
           parsed.data.useShards,
         );
-        const views = await loadCardViews(
-          db,
-          result.cards.map((c) => c.cardId),
-        );
+        // Règle anti-fuite : ni rareté ni finition avant la révélation. Seul le nombre de cartes
+        // part, plus celles déjà révélées si la requête est rejouée (rechargement de la page).
+        const { cards: all, revealedCount, ...rest } = result;
         return {
-          ...result,
-          cards: result.cards.map((c) => ({
-            ...views.get(c.cardId)!,
-            finish: c.finish,
-            isNew: c.isNew,
-          })),
+          ...rest,
+          total: all.length,
+          revealedCount,
+          revealed: await describeDrawn(all.slice(0, revealedCount)),
         };
+      } catch (err) {
+        if (err instanceof ApiError) return reply.code(err.status).send({ error: err.code });
+        throw err;
+      }
+    },
+  );
+
+  /** Révèle la carte `index` d'une ouverture (dans l'ordre : pas de saut en avant). */
+  app.post(
+    '/packs/openings/:id/reveal',
+    { preHandler: requireUser, config: { rateLimit: { max: 240, timeWindow: '1 minute' } } },
+    async (req, reply) => {
+      const params = openingParams.safeParse(req.params);
+      const body = revealSchema.safeParse(req.body);
+      if (!params.success) return sendInvalid(reply, params.error);
+      if (!body.success) return sendInvalid(reply, body.error);
+      try {
+        const { cards: revealed, total } = await revealOpening(
+          db,
+          req.user!.id,
+          params.data.id,
+          body.data.index + 1,
+          now(),
+        );
+        const card = revealed[body.data.index];
+        if (!card) return reply.code(404).send({ error: 'card_not_found' });
+        const [view] = await describeDrawn([card]);
+        return { index: body.data.index, total, card: view };
+      } catch (err) {
+        if (err instanceof ApiError) return reply.code(err.status).send({ error: err.code });
+        throw err;
+      }
+    },
+  );
+
+  /** « Tout révéler » : toutes les cartes d'une ouverture. */
+  app.post(
+    '/packs/openings/:id/reveal-all',
+    { preHandler: requireUser, config: { rateLimit: { max: 60, timeWindow: '1 minute' } } },
+    async (req, reply) => {
+      const params = openingParams.safeParse(req.params);
+      if (!params.success) return sendInvalid(reply, params.error);
+      try {
+        const { cards: revealed } = await revealOpening(
+          db,
+          req.user!.id,
+          params.data.id,
+          Infinity,
+          now(),
+        );
+        return { cards: await describeDrawn(revealed) };
       } catch (err) {
         if (err instanceof ApiError) return reply.code(err.status).send({ error: err.code });
         throw err;

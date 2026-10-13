@@ -1,0 +1,1 @@
+ALTER TABLE "pack_openings" ADD COLUMN "revealed_count" smallint DEFAULT 0 NOT NULL;
