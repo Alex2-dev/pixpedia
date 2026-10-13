@@ -77,3 +77,29 @@ export function formatChance(p: number): { pct: string; oneIn: number | null } {
     oneIn: Math.round(1 / p),
   };
 }
+
+/** Étape jouée en plein écran (les retournements simples restent sur la carte elle-même). */
+export type OverlayStep = Exclude<RevealStep, 'flip' | 'flip-combo'>;
+
+export const overlaySteps = (steps: readonly RevealStep[]): OverlayStep[] =>
+  steps.filter((s): s is OverlayStep => s !== 'flip' && s !== 'flip-combo');
+
+/**
+ * Enchaînement des étapes plein écran : le premier écran fait le retournement, une finition jouée
+ * après un drop démarre quand le recto apparaît. En mode réduit, on va droit à la dernière.
+ */
+export interface RevealChain {
+  steps: readonly OverlayStep[];
+  index: number;
+}
+
+export function startChain(steps: readonly OverlayStep[], reduced: boolean): RevealChain {
+  return { steps, index: reduced ? Math.max(0, steps.length - 1) : 0 };
+}
+
+/** Étape suivante, ou `null` à la fin de la chaîne. */
+export function nextInChain(chain: RevealChain): RevealChain | null {
+  return chain.index < chain.steps.length - 1 ? { ...chain, index: chain.index + 1 } : null;
+}
+
+export const isLastInChain = (chain: RevealChain) => chain.index >= chain.steps.length - 1;

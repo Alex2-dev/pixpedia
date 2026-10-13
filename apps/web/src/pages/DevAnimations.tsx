@@ -6,7 +6,7 @@ import {
   rarityRank,
   type Rarity,
 } from '@pixpedia/shared';
-import { DropOverlay } from '../components/drop/DropOverlay';
+import { RevealOverlay } from '../components/reveal/RevealOverlay';
 import { HofBanner } from '../components/HofBanner';
 import { DEMO_BY_RARITY, DEMO_ONE_PACK, DEMO_SEVEN_PACKS } from '../dev/fixtures';
 import { PackOpening } from '../features/pack-opening/PackOpening';
@@ -124,7 +124,7 @@ export function DevAnimations() {
       )}
 
       {drop && (
-        <DropOverlay
+        <RevealOverlay
           card={DEMO_BY_RARITY[drop]}
           chance={chance(drop)}
           mode="catalogue"

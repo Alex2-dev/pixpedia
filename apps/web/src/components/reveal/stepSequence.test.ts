@@ -6,11 +6,11 @@ import {
   skip,
   startSequence,
   tick,
-  type DropSequenceOptions,
-} from './dropSequence';
+  type StepOptions,
+} from './stepSequence';
 
-const boss: DropSequenceOptions = { durationMs: 1400, skipLockMs: 0, reduced: false };
-const firstHof: DropSequenceOptions = {
+const boss: StepOptions = { durationMs: 1400, skipLockMs: 0, reduced: false };
+const firstHof: StepOptions = {
   durationMs: 4500,
   skipLockMs: FIRST_HOF_SKIP_LOCK_MS,
   reduced: false,

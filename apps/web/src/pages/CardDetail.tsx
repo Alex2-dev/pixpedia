@@ -13,7 +13,7 @@ import {
 import { api, errorMessage, type CardDetail as Detail, type PacksResponse } from '../api';
 import { toCardData } from '../card/adapt';
 import { Card } from '../card/Card';
-import { DropOverlay } from '../components/drop/DropOverlay';
+import { RevealOverlay } from '../components/reveal/RevealOverlay';
 import { useSession } from '../session';
 import { useCardWidth } from '../useCardWidth';
 import { useReducedMotionPref } from '../useReducedMotion';
@@ -111,8 +111,9 @@ export function CardDetail() {
         )}
       </div>
       {dropOpen && (
-        <DropOverlay
+        <RevealOverlay
           card={{ ...cardData, isNew: false }}
+          steps={getRevealAnimation(card.rarity)}
           chance={formatChance(perCardChance(card.rarity, odds))}
           mode="catalogue"
           reduced={reduced}

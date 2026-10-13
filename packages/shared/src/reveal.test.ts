@@ -2,7 +2,16 @@ import { describe, expect, it } from 'vitest';
 import { RARITY_KEYS } from './constants';
 import { FINISHES } from './finishes';
 import { DEFAULT_PACK_ODDS } from './packs';
-import { REVEAL_STEP_MS, formatChance, getRevealAnimation, perCardChance } from './reveal';
+import {
+  REVEAL_STEP_MS,
+  formatChance,
+  getRevealAnimation,
+  isLastInChain,
+  nextInChain,
+  overlaySteps,
+  perCardChance,
+  startChain,
+} from './reveal';
 
 describe('getRevealAnimation (rareté × finition)', () => {
   it('exemples de la consigne', () => {
@@ -62,5 +71,28 @@ describe('formatChance', () => {
 
   it('gère une chance nulle', () => {
     expect(formatChance(0)).toEqual({ pct: '0 %', oneIn: null });
+  });
+});
+
+describe('enchaînement plein écran', () => {
+  it('garde le drop puis la finition, sans le retournement', () => {
+    expect(overlaySteps(getRevealAnimation('boss', 'holo'))).toEqual(['drop-boss', 'finish-holo']);
+    expect(overlaySteps(getRevealAnimation('starter', 'fullart'))).toEqual(['finish-fullart']);
+    expect(overlaySteps(getRevealAnimation('combo'))).toEqual([]);
+  });
+
+  it('avance étape par étape jusqu’à la fin', () => {
+    const chain = startChain(['drop-hof', 'finish-fullart'], false);
+    expect(chain.index).toBe(0);
+    expect(isLastInChain(chain)).toBe(false);
+    const next = nextInChain(chain)!;
+    expect(next.index).toBe(1);
+    expect(isLastInChain(next)).toBe(true);
+    expect(nextInChain(next)).toBeNull();
+  });
+
+  it('en mode réduit, part de la dernière étape', () => {
+    expect(startChain(['drop-final', 'finish-holo'], true).index).toBe(1);
+    expect(startChain([], true).index).toBe(0);
   });
 });

@@ -5,12 +5,12 @@ import {
   skip as skipState,
   startSequence,
   tick,
-  type DropPhase,
-  type DropSequenceOptions,
-} from './dropSequence';
+  type StepPhase,
+  type StepOptions,
+} from './stepSequence';
 
 /** Moments clés où l'on jouera les sons 8-bit (aucun fichier audio pour l'instant). */
-export type DropCue =
+export type RevealCue =
   | 'rumble'
   | 'crack'
   | 'impact'
@@ -25,21 +25,21 @@ export type DropCue =
 export interface CueAt {
   /** En millisecondes depuis le début du drop. */
   at: number;
-  cue: DropCue;
+  cue: RevealCue;
 }
 
-export interface UseDropSequence extends DropSequenceOptions {
+export interface UseStepSequence extends StepOptions {
   cues?: readonly CueAt[];
-  onCue?: (cue: DropCue) => void;
+  onCue?: (cue: RevealCue) => void;
   /** Appelé une fois, quand l'état final est atteint (fin naturelle, saut ou mode réduit). */
-  onDone?: (phase: Exclude<DropPhase, 'playing'>) => void;
+  onDone?: (phase: Exclude<StepPhase, 'playing'>) => void;
 }
 
 /**
  * Pilote une animation de drop : en cours → sautée ou terminée.
  * Les minuteries sont toutes annulées au démontage et dès que l'état final est atteint.
  */
-export function useDropSequence(opts: UseDropSequence) {
+export function useStepSequence(opts: UseStepSequence) {
   const { durationMs, skipLockMs, reduced, cues, onCue, onDone } = opts;
   const options = { durationMs, skipLockMs, reduced };
   const [state, setState] = useState(() => startSequence(options, Date.now()));
@@ -65,7 +65,7 @@ export function useDropSequence(opts: UseDropSequence) {
   const notified = useRef(false);
   useEffect(() => {
     if (!isFinal(state.phase)) return;
-    const phase = state.phase as Exclude<DropPhase, 'playing'>;
+    const phase = state.phase as Exclude<StepPhase, 'playing'>;
     const fire = () => {
       if (notified.current) return;
       notified.current = true;

@@ -1,7 +1,7 @@
-import { DropBack, DropFront, chanceLine, type DropSceneProps } from './shared';
+import { DropBack, DropFront, chanceLine, type SceneProps } from './shared';
 
 /** Drop « simple », ~1,4 s (maquette : tableau Boss). */
-export function BossDrop({ card, chance }: DropSceneProps) {
+export function BossDrop({ card, chance }: SceneProps) {
   return (
     <div className="bs-shake dp-fill">
       <div

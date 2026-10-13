@@ -1,13 +1,13 @@
 import type { CSSProperties } from 'react';
 import { Px } from '../../../card/pixel';
 import { HOF_CONFETTI, HOF_CONVERGE, HOF_FIREWORKS } from '../particles';
-import { DropBack, DropFront, chanceLine, type DropSceneProps } from './shared';
+import { DropBack, DropFront, chanceLine, type SceneProps } from './shared';
 
 const vars = (v: Record<string, string>) => v as CSSProperties;
 const TITLE = 'HALL OF FAME';
 
 /** Drop « spectaculaire », ~4,5 s (maquette : tableau Hall of Fame). */
-export function HofDrop({ card, chance, ticker }: DropSceneProps) {
+export function HofDrop({ card, chance, ticker }: SceneProps) {
   const wave = (color: string) =>
     ({
       left: 95,
@@ -20,11 +20,11 @@ export function HofDrop({ card, chance, ticker }: DropSceneProps) {
     }) as const;
   const tickerText = ticker ?? `${card.name.toUpperCase()} REJOINT LE HALL OF FAME`;
   return (
-    <div className="h-shake dp-fill">
-      <div className="h-dim dp-fill" style={{ background: '#05030A' }} />
+    <div className="hf-shake dp-fill">
+      <div className="hf-dim dp-fill" style={{ background: '#05030A' }} />
       <div className="dp-core">
         <div
-          className="h-rays dp-abs dp-loop"
+          className="hf-rays dp-abs dp-loop"
           style={{
             left: -355,
             top: -170,
@@ -38,7 +38,7 @@ export function HofDrop({ card, chance, ticker }: DropSceneProps) {
           }}
         />
         <div
-          className="h-aura dp-abs dp-loop"
+          className="hf-aura dp-abs dp-loop"
           style={{
             left: 5,
             top: 190,
@@ -52,7 +52,7 @@ export function HofDrop({ card, chance, ticker }: DropSceneProps) {
         {HOF_CONVERGE.map((p, i) => (
           <div
             key={i}
-            className="h-conv dp-abs"
+            className="hf-conv dp-abs"
             style={{
               left: p.left,
               top: p.top,
@@ -64,22 +64,22 @@ export function HofDrop({ card, chance, ticker }: DropSceneProps) {
             }}
           />
         ))}
-        <div className="h-sw1 dp-abs" style={wave('#2EE6FF')} />
-        <div className="h-sw2 dp-abs" style={wave('#FF4FB0')} />
-        <div className="h-sw3 dp-abs" style={wave('#FFD23F')} />
+        <div className="hf-sw1 dp-abs" style={wave('#2EE6FF')} />
+        <div className="hf-sw2 dp-abs" style={wave('#FF4FB0')} />
+        <div className="hf-sw3 dp-abs" style={wave('#FFD23F')} />
         <div className="dp-cardbox">
-          <div className="h-lev dp-fill">
-            <div className="h-rumble dp-fill">
-              <div className="h-back dp-fill" style={{ borderRadius: 14 }}>
+          <div className="hf-lev dp-fill">
+            <div className="hf-rumble dp-fill">
+              <div className="hf-back dp-fill" style={{ borderRadius: 14 }}>
                 <DropBack />
                 <svg
-                  className="h-crack"
+                  className="hf-crack"
                   viewBox="0 0 240 336"
                   style={{ position: 'absolute', inset: 0, width: 240, height: 336 }}
                   aria-hidden="true"
                 >
                   <defs>
-                    <linearGradient id="h-rainbow" x1="0" y1="0" x2="1" y2="1">
+                    <linearGradient id="hf-rainbow" x1="0" y1="0" x2="1" y2="1">
                       <stop offset="0" stopColor="#2EE6FF" />
                       <stop offset=".33" stopColor="#A05CFF" />
                       <stop offset=".66" stopColor="#FF4FB0" />
@@ -88,24 +88,24 @@ export function HofDrop({ card, chance, ticker }: DropSceneProps) {
                   </defs>
                   <g
                     fill="none"
-                    stroke="url(#h-rainbow)"
+                    stroke="url(#hf-rainbow)"
                     strokeWidth="4"
                     style={{ filter: 'drop-shadow(0 0 8px #fff)' }}
                   >
                     <polyline
-                      className="h-c1"
+                      className="hf-c1"
                       points="120,0 104,70 138,130 96,190 130,260 110,336"
                     />
-                    <polyline className="h-c2" points="138,130 200,150 240,110" />
-                    <polyline className="h-c3" points="96,190 30,230 0,210" />
-                    <polyline className="h-c3" points="130,260 200,300 240,290" />
+                    <polyline className="hf-c2" points="138,130 200,150 240,110" />
+                    <polyline className="hf-c3" points="96,190 30,230 0,210" />
+                    <polyline className="hf-c3" points="130,260 200,300 240,290" />
                   </g>
                 </svg>
               </div>
             </div>
           </div>
           <div
-            className="h-glow dp-abs dp-loop"
+            className="hf-glow dp-abs dp-loop"
             style={{
               inset: -24,
               borderRadius: 30,
@@ -113,11 +113,11 @@ export function HofDrop({ card, chance, ticker }: DropSceneProps) {
               filter: 'blur(30px)',
             }}
           />
-          <div className="h-front dp-fill">
+          <div className="hf-front dp-fill">
             <DropFront card={card} />
           </div>
           <div
-            className="h-trophy dp-abs"
+            className="hf-trophy dp-abs"
             style={{
               left: '50%',
               top: -74,
@@ -129,9 +129,9 @@ export function HofDrop({ card, chance, ticker }: DropSceneProps) {
           </div>
         </div>
       </div>
-      <div className="h-flash dp-fill" style={{ background: '#FFFFFF' }} />
+      <div className="hf-flash dp-fill" style={{ background: '#FFFFFF' }} />
       <div
-        className="h-flash2 dp-fill"
+        className="hf-flash2 dp-fill"
         style={{
           background:
             'conic-gradient(from 0deg at 50% 45%,#2EE6FF,#A05CFF,#FF4FB0,#FFD23F,#2EE6FF)',
@@ -141,7 +141,7 @@ export function HofDrop({ card, chance, ticker }: DropSceneProps) {
         {HOF_FIREWORKS.map((p, i) => (
           <div
             key={i}
-            className="h-fw dp-abs"
+            className="hf-fw dp-abs"
             style={{
               left: p.left,
               top: p.top,
@@ -157,7 +157,7 @@ export function HofDrop({ card, chance, ticker }: DropSceneProps) {
       {HOF_CONFETTI.map((p, i) => (
         <div
           key={i}
-          className="h-conf dp-abs dp-loop"
+          className="hf-conf dp-abs dp-loop"
           style={{
             // Plein écran : la position de la maquette (sur 390 px) devient un pourcentage.
             left: `${((p.left / 390) * 100).toFixed(1)}%`,
@@ -187,20 +187,20 @@ export function HofDrop({ card, chance, ticker }: DropSceneProps) {
             {[...TITLE].map((ch, i) => (
               <span
                 key={i}
-                className="h-let"
+                className="hf-let"
                 style={{ animationDelay: `${(2.75 + i * 0.06).toFixed(2)}s` }}
               >
                 {ch === ' ' ? '\u00A0' : ch}
               </span>
             ))}
           </div>
-          <div className="h-pct dp-px" style={{ color: '#FFE9A8' }}>
+          <div className="hf-pct dp-px" style={{ color: '#FFE9A8' }}>
             {chanceLine(chance)}
           </div>
         </div>
       </div>
       <div
-        className="h-ticker dp-abs"
+        className="hf-ticker dp-abs"
         style={{
           left: 0,
           right: 0,
@@ -214,7 +214,7 @@ export function HofDrop({ card, chance, ticker }: DropSceneProps) {
         }}
       >
         <div
-          className="h-tick dp-loop"
+          className="hf-tick dp-loop"
           style={{
             whiteSpace: 'nowrap',
             fontFamily: 'Silkscreen, monospace',

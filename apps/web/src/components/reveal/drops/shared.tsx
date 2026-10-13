@@ -2,15 +2,17 @@ import { Card } from '../../../card/Card';
 import { CardBack } from '../../../card/fronts';
 import type { CardData } from '../../../card/types';
 
-export interface DropSceneProps {
+export interface SceneProps {
   card: CardData;
   /** « 5,4 % » et 19 pour « 1 chance sur 19 ». */
   chance: { pct: string; oneIn: number | null };
   /** Texte du bandeau Hall of Fame (« thedead a tiré Starfall Odyssey »). */
   ticker?: string;
+  /** Joué après un drop : le recto est déjà visible, la scène ne refait pas le retournement. */
+  afterDrop?: boolean;
 }
 
-export const chanceLine = (c: DropSceneProps['chance']) =>
+export const chanceLine = (c: SceneProps['chance']) =>
   c.oneIn ? `${c.pct} · 1 CHANCE SUR ${c.oneIn}` : c.pct;
 
 /** Dos de carte à la taille du design (240 × 336), le composant existant. */

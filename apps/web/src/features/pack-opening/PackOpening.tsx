@@ -1,8 +1,8 @@
 import { useEffect, useState, type CSSProperties } from 'react';
-import { dropOf, getRevealAnimation, type Rarity } from '@pixpedia/shared';
-import { DropOverlay } from '../../components/drop/DropOverlay';
-import type { DropCue } from '../../components/drop/useDropSequence';
-import { useStageScale } from '../../components/drop/useStageScale';
+import type { Rarity } from '@pixpedia/shared';
+import { RevealOverlay, hasRevealOverlay } from '../../components/reveal/RevealOverlay';
+import type { RevealCue } from '../../components/reveal/useStepSequence';
+import { useStageScale } from '../../components/reveal/useStageScale';
 import { PackStack } from './PackStack';
 import { RevealRecap } from './RevealRecap';
 import { RevealStage } from './RevealStage';
@@ -32,7 +32,7 @@ export interface PackOpeningProps {
   onReplay: () => void;
   onClose: () => void;
   onHofSeen?: () => void;
-  onCue?: (cue: DropCue) => void;
+  onCue?: (cue: RevealCue) => void;
 }
 
 /** Ouverture de packs : idle → tearing → reveal → recap (maquette pixpedia-animations.html). */
@@ -97,7 +97,7 @@ export function PackOpening(props: PackOpeningProps) {
           setPending(false);
         }
       }
-      if (dropOf(getRevealAnimation(card.rarity, card.card.finish))) setDropOpen(true);
+      if (hasRevealOverlay(card.card)) setDropOpen(true);
       else setUp(true);
       return;
     }
@@ -228,7 +228,7 @@ export function PackOpening(props: PackOpeningProps) {
       </div>
 
       {dropOpen && item && (
-        <DropOverlay
+        <RevealOverlay
           card={item.card}
           chance={props.chance(item.rarity)}
           mode="opening"

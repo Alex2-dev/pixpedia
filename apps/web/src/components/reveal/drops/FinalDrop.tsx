@@ -1,12 +1,12 @@
 import type { CSSProperties } from 'react';
 import { Px } from '../../../card/pixel';
 import { FINAL_EMBERS, FINAL_FRAGS, FINAL_SPARKS } from '../particles';
-import { DropBack, DropFront, chanceLine, type DropSceneProps } from './shared';
+import { DropBack, DropFront, chanceLine, type SceneProps } from './shared';
 
 const vars = (v: Record<string, string>) => v as CSSProperties;
 
 /** Drop « stylé », ~3 s (maquette : tableau Boss final). */
-export function FinalDrop({ card, chance }: DropSceneProps) {
+export function FinalDrop({ card, chance }: SceneProps) {
   const ring = { left: 95, top: 280, width: 200, height: 200, borderRadius: '50%' } as const;
   return (
     <div className="ff-shake dp-fill">
