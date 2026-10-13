@@ -1,22 +1,9 @@
 import { Card } from '../card/Card';
 import type { CardData } from '../card/types';
+import { demoCard } from '../dev/fixtures';
 
 /** Galerie de dev : les cartes de démo du design, pour comparer le rendu. */
-const base = (
-  o: Partial<CardData> & Pick<CardData, 'id' | 'name' | 'rarity' | 'cost' | 'stats'>,
-): CardData => ({
-  number: `#${String(o.id).padStart(4, '0')}`,
-  series: 'S1',
-  year: 2000,
-  platform: 'PC',
-  family: 'action',
-  cover: null,
-  isNew: false,
-  isBound: false,
-  variant: 'normal',
-  finish: 'normal',
-  ...o,
-});
+const base = demoCard;
 
 const CARDS: CardData[] = [
   base({

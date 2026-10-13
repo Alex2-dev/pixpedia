@@ -5,6 +5,7 @@ import { Layout } from './components/Layout';
 import { Login, Register } from './pages/Auth';
 import { CardDetail } from './pages/CardDetail';
 import { Collection } from './pages/Collection';
+import { DevAnimations } from './pages/DevAnimations';
 import { Gallery } from './pages/Gallery';
 import { SetDetail } from './pages/SetDetail';
 import { Sets } from './pages/Sets';
@@ -56,6 +57,7 @@ createRoot(document.getElementById('root') as HTMLElement).render(
             <Route path="sets" element={<Sets />} />
             <Route path="sets/:type/:key" element={<SetDetail />} />
             {import.meta.env.DEV && <Route path="galerie" element={<Gallery />} />}
+            {import.meta.env.DEV && <Route path="dev/animations" element={<DevAnimations />} />}
             <Route path="*" element={<Navigate to="/" replace />} />
           </Route>
         </Routes>

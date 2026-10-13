@@ -661,3 +661,27 @@ h2 {
 .set-detail h1 {
   margin-top: 4px;
 }
+
+/* ---------- Page interne /dev/animations ---------- */
+.dev-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 24px;
+  margin: 16px 0;
+}
+.dev-controls label.check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.dev-controls input {
+  width: 20px;
+  min-height: 20px;
+  accent-color: var(--rune);
+}
+.dev-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 16px;
+}
