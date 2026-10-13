@@ -1,4 +1,4 @@
-import type { Rarity } from '@pixpedia/shared';
+import type { Finish, Rarity } from '@pixpedia/shared';
 import type { CardData } from '../card/types';
 
 /** Données de démo (galerie, /dev/animations) : les cartes de la maquette. */
@@ -96,10 +96,22 @@ const NAMES = [
   'Ember Saga',
 ];
 
-/** Pack de démo : 5 cartes des raretés données, dans le désordre (la plus rare sortira en dernier). */
-function demoPack(pack: number, rarities: Rarity[]) {
-  return rarities.map((rarity, i) => {
-    const base = DEMO_BY_RARITY[rarity];
+/** Carte de démo d'une rareté et d'une finition (l'Arène est liée, à un événement). */
+export function demoWithFinish(rarity: Rarity, finish: Finish): CardData {
+  const base = DEMO_BY_RARITY[rarity];
+  return finish === 'arena'
+    ? { ...base, finish, isBound: true, eventName: 'Worlds 2026', obtainedAt: '2026-10-12' }
+    : { ...base, finish };
+}
+
+/**
+ * Pack de démo : 5 cartes des raretés données (avec finition éventuelle), dans le désordre
+ * (la plus rare sortira en dernier).
+ */
+function demoPack(pack: number, slots: (Rarity | [Rarity, Finish])[]) {
+  return slots.map((slot, i) => {
+    const [rarity, finish] = typeof slot === 'string' ? [slot, 'normal' as const] : slot;
+    const base = demoWithFinish(rarity, finish);
     const id = pack * 10 + i;
     return {
       pack,
@@ -116,16 +128,22 @@ function demoPack(pack: number, rarities: Rarity[]) {
   });
 }
 
-/** 1 pack : Starter, Bonus, Combo, Boss final, Boss. */
-export const DEMO_ONE_PACK = demoPack(1, ['final', 'starter', 'boss', 'bonus', 'combo']);
+/** 1 pack : Starter, Bonus Holo, Combo, Boss Holo, Boss final. */
+export const DEMO_ONE_PACK = demoPack(1, [
+  'final',
+  'starter',
+  ['boss', 'holo'],
+  ['bonus', 'holo'],
+  'combo',
+]);
 
-/** 7 packs (35 cartes), dont un Boss, un Boss final et un Hall of Fame. */
+/** 7 packs (35 cartes), dont un Boss, un Boss final, un Hall of Fame Full art et un Combo Full art. */
 export const DEMO_SEVEN_PACKS = [
   demoPack(1, ['starter', 'starter', 'bonus', 'starter', 'combo']),
   demoPack(2, ['boss', 'starter', 'bonus', 'starter', 'bonus']),
   demoPack(3, ['starter', 'starter', 'starter', 'bonus', 'combo']),
   demoPack(4, ['starter', 'final', 'bonus', 'starter', 'combo']),
   demoPack(5, ['starter', 'starter', 'starter', 'bonus', 'bonus']),
-  demoPack(6, ['bonus', 'starter', 'hof', 'starter', 'combo']),
-  demoPack(7, ['starter', 'bonus', 'starter', 'starter', 'combo']),
+  demoPack(6, ['bonus', 'starter', ['hof', 'fullart'], 'starter', 'combo']),
+  demoPack(7, ['starter', 'bonus', 'starter', 'starter', ['combo', 'fullart']]),
 ].flat();

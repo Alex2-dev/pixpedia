@@ -8,8 +8,6 @@ export interface SceneProps {
   chance: { pct: string; oneIn: number | null };
   /** Texte du bandeau Hall of Fame (« thedead a tiré Starfall Odyssey »). */
   ticker?: string;
-  /** Joué après un drop : le recto est déjà visible, la scène ne refait pas le retournement. */
-  afterDrop?: boolean;
 }
 
 export const chanceLine = (c: SceneProps['chance']) =>

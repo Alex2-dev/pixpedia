@@ -11,13 +11,16 @@ import { FIRST_HOF_SKIP_LOCK_MS } from './stepSequence';
 import { BossDrop } from './drops/BossDrop';
 import { FinalDrop } from './drops/FinalDrop';
 import { HofDrop } from './drops/HofDrop';
+import { ArenaFinish } from './finishes/ArenaFinish';
+import { FullArtFinish } from './finishes/FullArtFinish';
+import { HoloFinish } from './finishes/HoloFinish';
 import type { SceneProps } from './drops/shared';
 import { useRevealSequence } from './useRevealSequence';
 import { useStepSequence, type CueAt, type RevealCue } from './useStepSequence';
 import { useStageScale } from './useStageScale';
 import './reveal.css';
 
-/** Signaux sonores de chaque drop, aux moments clés des timelines de la maquette (ms). */
+/** Signaux sonores de chaque étape, aux moments clés des timelines des maquettes (ms). */
 const CUES: Partial<Record<OverlayStep, readonly CueAt[]>> = {
   'drop-boss': [
     { at: 0, cue: 'rumble' },
@@ -43,21 +46,52 @@ const CUES: Partial<Record<OverlayStep, readonly CueAt[]>> = {
     { at: 3750, cue: 'firework' },
     { at: 4100, cue: 'firework' },
   ],
+  'finish-holo': [
+    { at: 500, cue: 'flip' },
+    { at: 850, cue: 'shimmer' },
+    { at: 1150, cue: 'stamp' },
+  ],
+  'finish-fullart': [
+    { at: 0, cue: 'curtain' },
+    { at: 300, cue: 'flip' },
+    { at: 1000, cue: 'spotlight' },
+    { at: 2000, cue: 'shimmer' },
+    { at: 2200, cue: 'title' },
+  ],
+  'finish-arena': [
+    { at: 200, cue: 'spotlight' },
+    { at: 1350, cue: 'flip' },
+    { at: 1400, cue: 'cheer' },
+    { at: 1650, cue: 'title' },
+  ],
 };
 
-/** Scènes plein écran par étape. Les finitions arrivent avec leurs animations. */
-const SCENES: Partial<Record<OverlayStep, (p: SceneProps) => ReactNode>> = {
+/** Scènes plein écran par étape. */
+const SCENES: Record<OverlayStep, (p: SceneProps) => ReactNode> = {
   'drop-boss': BossDrop,
   'drop-final': FinalDrop,
   'drop-hof': HofDrop,
+  'finish-holo': HoloFinish,
+  'finish-fullart': FullArtFinish,
+  'finish-arena': ArenaFinish,
+};
+
+/**
+ * Moment où le recto apparaît dans chaque finition (ms). Jouée après un drop, la finition
+ * démarre là : le recto est déjà visible, le dos et le retournement sont sautés.
+ */
+const FACE_AT: Partial<Record<OverlayStep, number>> = {
+  'finish-holo': 500,
+  'finish-fullart': 300,
+  'finish-arena': 1350,
 };
 
 const ACCENT: Record<OverlayStep, string> = {
   'drop-boss': '#A05CFF',
   'drop-final': '#FF8A3D',
   'drop-hof': '#FFD23F',
-  'finish-holo': '#4FE3D1',
-  'finish-fullart': '#FFD23F',
+  'finish-holo': '#A05CFF',
+  'finish-fullart': '#F5E3B0',
   'finish-arena': '#FF4FB0',
 };
 /** Apparition du bouton du bas, selon la maquette. */
@@ -65,16 +99,14 @@ const CTA_DELAY: Record<OverlayStep, string> = {
   'drop-boss': '1.4s',
   'drop-final': '3.1s',
   'drop-hof': '4.2s',
-  'finish-holo': '1.5s',
-  'finish-fullart': '2.8s',
-  'finish-arena': '1.9s',
+  'finish-holo': '1.7s',
+  'finish-fullart': '3s',
+  'finish-arena': '2.1s',
 };
 
-/** Étapes plein écran d'une carte qui ont une scène. */
+/** Étapes plein écran d'une carte. */
 export function revealChainOf(card: CardData, steps?: readonly RevealStep[]): OverlayStep[] {
-  return overlaySteps(steps ?? getRevealAnimation(card.rarity, card.finish)).filter(
-    (s) => SCENES[s],
-  );
+  return overlaySteps(steps ?? getRevealAnimation(card.rarity, card.finish));
 }
 
 /** La carte se révèle en plein écran (drop ou finition) plutôt que par un simple retournement. */
@@ -120,11 +152,17 @@ function StepRun({
   onDone: () => void;
   onReplay: () => void;
 }) {
+  // Finition jouée après un drop : on avance sa timeline jusqu'à l'apparition du recto.
+  const after = index > 0 ? (FACE_AT[step] ?? 0) : 0;
+  const cues = useMemo(
+    () => CUES[step]?.filter((c) => c.at >= after).map((c) => ({ ...c, at: c.at - after })),
+    [step, after],
+  );
   const { phase, final, skip } = useStepSequence({
-    durationMs: REVEAL_STEP_MS[step],
+    durationMs: REVEAL_STEP_MS[step] - after,
     skipLockMs: step === 'drop-hof' && props.firstHof ? FIRST_HOF_SKIP_LOCK_MS : 0,
     reduced: props.reduced,
-    cues: CUES[step],
+    cues,
     onCue: props.onCue,
     onDone: (how) => {
       if (step === 'drop-hof') props.onHofSeen?.();
@@ -133,7 +171,7 @@ function StepRun({
     },
   });
   useEffect(() => onControl({ final, skip }), [final, skip, onControl]);
-  const Scene = SCENES[step]!;
+  const Scene = SCENES[step];
   const scale = useStageScale();
   return (
     <div
@@ -142,14 +180,15 @@ function StepRun({
       data-final={phase === 'skipped' || undefined}
       data-testid="drop-stage"
       data-step={step}
+      data-after={after > 0 || undefined}
       data-state={final ? 'final' : 'playing'}
-      style={{ ['--dp-scale' as string]: scale } as CSSProperties}
+      style={{ '--dp-scale': scale, '--after': `${after / 1000}s` } as CSSProperties}
     >
-      <Scene card={props.card} chance={props.chance} ticker={props.ticker} afterDrop={index > 0} />
+      <Scene card={props.card} chance={props.chance} ticker={props.ticker} />
       {last && (
         <div
           className={`dp-actions${props.mode === 'opening' ? ' dp-cta' : ''}`}
-          style={{ ['--cta-delay' as string]: CTA_DELAY[step] } as CSSProperties}
+          style={{ '--cta-delay': `calc(${CTA_DELAY[step]} - var(--after, 0s))` } as CSSProperties}
           onClick={(e) => e.stopPropagation()}
         >
           {props.mode === 'opening' ? (

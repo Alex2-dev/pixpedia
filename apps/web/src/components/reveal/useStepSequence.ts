@@ -20,7 +20,13 @@ export type RevealCue =
   | 'title'
   | 'fanfare'
   | 'firework'
-  | 'trophy';
+  | 'trophy'
+  | 'flip'
+  | 'shimmer'
+  | 'stamp'
+  | 'curtain'
+  | 'spotlight'
+  | 'cheer';
 
 export interface CueAt {
   /** En millisecondes depuis le début du drop. */
