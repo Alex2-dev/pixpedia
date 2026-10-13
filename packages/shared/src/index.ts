@@ -10,3 +10,4 @@ export * from './platforms';
 export * from './packs';
 export * from './player';
 export * from './progression';
+export * from './reveal';
